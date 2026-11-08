@@ -1,0 +1,52 @@
+:root {
+  /* Color Palette - Warm Cream & Terracotta (Matching "Mua Gì Đây" UI) */
+  --bg-cream: #FDF6F0;
+  --bg-cream-deep: #F7EAE0;
+  --bg-surface: #FFFFFF;
+  --bg-user-bubble: #EFE3D8;
+  --bg-chip: #F9EBE0;
+  --bg-chip-hover: #F3DEC9;
+  --bg-chip-active: #FDE9DF;
+
+  /* Primary Brand Colors */
+  --primary: #C84019;
+  --primary-hover: #B03512;
+  --primary-light: #E85D35;
+  --primary-soft: #FCE8E1;
+  --primary-border: #E8A892;
+
+  /* Status & Verification Colors */
+  --verified-bg: #E5F5EC;
+  --verified-text: #1B7A43;
+  --budget-leftover-bg: #E3F4EA;
+  --budget-leftover-text: #176B3A;
+  --warning-bg: #FFF5D6;
+  --warning-text: #946200;
+  --star-gold: #F59E0B;
+
+  /* Typography Colors */
+  --text-primary: #1E1916;
+  --text-secondary: #5C524B;
+  --text-muted: #8C7E75;
+  --text-on-primary: #FFFFFF;
+
+  /* Borders & Shadows */
+  --border-light: #EFE3D8;
+  --border-chip: #E8D5C4;
+  --border-focus: #D96B43;
+  --shadow-sm: 0 2px 8px rgba(60, 35, 20, 0.05);
+  --shadow-md: 0 6px 20px rgba(60, 35, 20, 0.08);
+  --shadow-lg: 0 12px 32px rgba(60, 35, 20, 0.12);
+  --shadow-dock: 0 -4px 24px rgba(60, 35, 20, 0.09);
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 26px;
+  --radius-pill: 9999px;
+
+  /* Font Family */
+  --font-sans: 'Plus Jakarta Sans', 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, serif;
+}

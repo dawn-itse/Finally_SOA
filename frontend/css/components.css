@@ -1,0 +1,954 @@
+/* ==========================================================================
+   1. HOME SCREEN: FLOATING FOOD ILLUSTRATIONS & WEATHER CONTEXT
+   ========================================================================== */
+.home-hero-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 18px 8px 24px;
+  animation: fadeIn 0.35s ease;
+}
+
+.food-illustration-stage {
+  position: relative;
+  width: 280px;
+  height: 210px;
+  margin: 6px auto 18px;
+}
+
+.food-item-art {
+  position: absolute;
+  display: flex;
+   flex-direction: column;
+  align-items: center;
+  transition: transform 0.3s ease;
+  cursor: pointer;
+}
+
+.food-item-art:hover {
+  transform: scale(1.08) translateY(-4px);
+}
+
+.food-item-art.center-pho {
+  left: 50%;
+  top: 48%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  animation: floatSlow 4s ease-in-out infinite;
+}
+
+.food-item-art.top-left-banhmi {
+  left: 8px;
+  top: 10px;
+  animation: floatSlow 4.5s ease-in-out 0.4s infinite;
+}
+
+.food-item-art.top-right-coffee {
+  right: 14px;
+  top: 4px;
+  animation: floatSlow 3.8s ease-in-out 0.8s infinite;
+}
+
+.food-item-art.bottom-left-com {
+  left: 4px;
+  bottom: 8px;
+  animation: floatSlow 4.2s ease-in-out 1.1s infinite;
+}
+
+.food-item-art.bottom-right-bobatea {
+  right: 10px;
+  bottom: 4px;
+  animation: floatSlow 4.6s ease-in-out 0.2s infinite;
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.food-item-art.center-pho {
+  animation-name: floatCenter;
+}
+@keyframes floatCenter {
+  0%, 100% { transform: translate(-50%, -50%) translateY(0); }
+  50% { transform: translate(-50%, -50%) translateY(-6px); }
+}
+
+.hero-question-title {
+  font-size: 1.55rem;
+  font-weight: 800;
+  line-height: 1.28;
+  color: var(--text-primary);
+  letter-spacing: -0.025em;
+  max-width: 320px;
+  margin-bottom: 14px;
+}
+
+.weather-badge-line {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.weather-context-quote {
+  font-size: 0.95rem;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--text-primary);
+  max-width: 340px;
+  opacity: 0.9;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 12px;
+  transition: background 0.2s ease;
+}
+
+.weather-context-quote:hover {
+  background: rgba(200, 64, 25, 0.06);
+}
+
+/* ==========================================================================
+   2. CONVERSATIONAL STREAM (CHAT BUBBLES & SLOT FILLING CHIPS)
+   ========================================================================== */
+.chat-stream {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.chat-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  animation: slideUpFade 0.25s ease forwards;
+}
+
+.chat-row.user {
+  justify-content: flex-end;
+}
+
+.bot-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #E85222 0%, #C83B12 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  box-shadow: 0 2px 6px rgba(200, 64, 25, 0.25);
+}
+
+.bot-bubble-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 85%;
+}
+
+.bot-bubble {
+  background: var(--bg-surface);
+  border-radius: 18px 18px 18px 6px;
+  padding: 13px 16px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+}
+
+.user-bubble {
+  background: var(--bg-user-bubble);
+  border-radius: 18px 18px 6px 18px;
+  padding: 10px 16px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  max-width: 78%;
+}
+
+/* Quick Budget Reply Chips (30k, 50k, 100k, 200k) */
+.quick-budget-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: 42px;
+  animation: slideUpFade 0.3s ease;
+}
+
+.btn-budget-option {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-pill);
+  padding: 10px 20px;
+  font-family: var(--font-sans);
+  font-size: 0.93rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.16s ease;
+}
+
+.btn-budget-option:hover {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   3. RADAR SCANNING WIDGET (Screens 3 & 5)
+   ========================================================================== */
+.radar-widget-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0 12px;
+  animation: fadeIn 0.3s ease;
+}
+
+.radar-circle {
+  position: relative;
+  width: 230px;
+  height: 230px;
+  border-radius: 50%;
+  border: 1.5px solid #EBCAB4;
+  background: radial-gradient(circle, #FFFDFB 0%, #FDF2E9 100%);
+  overflow: hidden;
+  box-shadow: 0 8px 28px rgba(200, 64, 25, 0.08);
+}
+
+/* Crosshair lines */
+.radar-circle::before,
+.radar-circle::after {
+  content: '';
+  position: absolute;
+  background: #EDD5C5;
+}
+.radar-circle::before {
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+.radar-circle::after {
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.radar-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1.2px dashed #E8C7B0;
+  pointer-events: none;
+}
+
+.radar-ring.r1 { width: 76px; height: 76px; }
+.radar-ring.r2 { width: 152px; height: 152px; }
+
+/* Rotating Radar Sweep Sector */
+.radar-sweep {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 115px;
+  height: 115px;
+  transform-origin: 0% 0%;
+  background: conic-gradient(from 190deg at 0% 0%, rgba(214, 69, 27, 0.38) 0deg, rgba(214, 69, 27, 0.02) 65deg, transparent 70deg);
+  animation: radarSpin 2.2s linear infinite;
+}
+
+@keyframes radarSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.radar-center-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--primary);
+  border: 3px solid #FFFFFF;
+  box-shadow: 0 0 0 2px var(--primary-border);
+  z-index: 4;
+}
+
+.radar-blip {
+  position: absolute;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: 2px solid #E89A78;
+  box-shadow: 0 4px 12px rgba(200, 64, 25, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  animation: pulseBlip 1.8s ease-in-out infinite;
+}
+
+@keyframes pulseBlip {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(214, 69, 27, 0.25); }
+  50% { transform: scale(1.08); box-shadow: 0 0 0 8px rgba(214, 69, 27, 0); }
+}
+
+.radar-caption {
+  margin-top: 14px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   4. RESULTS HEADER, VIEW SWITCHER & SORT CHIPS (Screen 8)
+   ========================================================================== */
+.results-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+  animation: slideUpFade 0.3s ease;
+}
+
+.query-summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 2px;
+}
+
+.query-dish-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: #F5E6D8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.query-summary-text h3 {
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.query-summary-text p {
+  font-size: 0.83rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Segmented Toggle: Danh sách | Bản đồ */
+.view-mode-segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #F3E5D8;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  gap: 4px;
+}
+
+.btn-view-tab {
+  height: 36px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-view-tab.active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Sort Chips Row (Đề xuất, Gần -> xa, Đánh giá, Giá) */
+.sort-chips-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.sort-chips-row::-webkit-scrollbar {
+  display: none;
+}
+
+.btn-sort-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--border-light);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.83rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.btn-sort-chip.active {
+  background: #FCEEE6;
+  border-color: #D47A55;
+  color: #8C2D0F;
+}
+
+/* ==========================================================================
+   5. HERO BEST-MATCH RESTAURANT CARD (Screens 6, 7, 8)
+   ========================================================================== */
+.hero-restaurant-card {
+  background: var(--bg-surface);
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-md);
+}
+
+/* Mini Route Map Header inside Card */
+.card-minimap-header {
+  position: relative;
+  height: 132px;
+  background: #EDE5D8;
+  overflow: hidden;
+}
+
+.minimap-svg-bg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.minimap-travel-pill {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: var(--shadow-sm);
+}
+
+.minimap-top-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+}
+
+.btn-circle-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.btn-circle-icon:hover {
+  transform: scale(1.06);
+}
+
+.btn-circle-icon.favorited {
+  color: #E11D48;
+}
+
+.minimap-dish-sticker {
+  position: absolute;
+  right: 12px;
+  bottom: -6px;
+  width: 78px;
+  height: 78px;
+  z-index: 3;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.12));
+}
+
+/* Card Body */
+.hero-card-body {
+  padding: 14px 16px 16px;
+}
+
+.verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--verified-bg);
+  color: var(--verified-text);
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  margin-bottom: 6px;
+}
+
+.unverified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  margin-bottom: 6px;
+}
+
+.restaurant-title {
+  font-size: 1.22rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  letter-spacing: -0.015em;
+}
+
+.restaurant-meta-line {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.open-status-green {
+  color: var(--verified-text);
+  font-weight: 700;
+}
+
+.restaurant-address-line {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+/* Price & Leftover Budget Row ("từ 45k" + "dư 5k") */
+.price-budget-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.price-tag-main {
+  background: var(--primary);
+  color: #FFFFFF;
+  padding: 5px 13px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  box-shadow: 0 3px 8px rgba(200, 64, 25, 0.25);
+}
+
+.price-tag-main strong {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.budget-leftover-pill {
+  background: var(--budget-leftover-bg);
+  color: var(--budget-leftover-text);
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+}
+
+/* Rating & Featured Review Quote */
+.rating-summary-line {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  margin-bottom: 7px;
+  cursor: pointer;
+}
+
+.rating-summary-line strong {
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+.featured-review-quote {
+  border-left: 3px solid #F59E0B;
+  padding-left: 10px;
+  margin-bottom: 12px;
+  font-size: 0.84rem;
+  font-style: italic;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.featured-review-quote .quote-author {
+  font-style: normal;
+  color: var(--text-secondary);
+  font-size: 0.79rem;
+}
+
+/* Matched Menu Dish Chips ("Phở bò chín 45k", "Phở bò tái 50k") */
+.matched-dishes-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+
+.dish-price-chip {
+  background: #FDF1E8;
+  border: 1px solid #F3D9C6;
+  padding: 5px 10px;
+  border-radius: 9px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dish-price-chip strong {
+  color: var(--primary);
+  font-weight: 800;
+  margin-left: 3px;
+}
+
+/* Card CTA Buttons ("Chỉ đường", "Menu", "+ Đánh giá") */
+.card-cta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-cta-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--primary);
+  color: #FFFFFF;
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+.btn-cta-primary:hover {
+  background: var(--primary-hover);
+}
+
+.btn-cta-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 15px;
+  border-radius: var(--radius-pill);
+  border: 1px solid #F2DEC4;
+  background: #FFF6E0;
+  color: #7A4B12;
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+.btn-cta-secondary:hover {
+  background: #FCEBC2;
+}
+
+/* ==========================================================================
+   6. SECONDARY NEARBY RESTAURANTS ("Quán khác gần đây" - Screen 6)
+   ========================================================================== */
+.nearby-others-section {
+  margin-top: 6px;
+}
+
+.nearby-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.nearby-section-header h4 {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.btn-link-orange {
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-family: var(--font-sans);
+  font-size: 0.83rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.nearby-carousel {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: none;
+}
+.nearby-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.nearby-mini-card {
+  min-width: 245px;
+  max-width: 260px;
+  background: var(--bg-surface);
+  border-radius: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.nearby-mini-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary-border);
+}
+
+.mini-card-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: #F9EDE2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mini-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.comparison-tag {
+  font-size: 0.73rem;
+  font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 2px;
+}
+
+.mini-card-title {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.25;
+}
+
+.mini-card-sub {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 3px;
+}
+
+.btn-expand-more-places {
+  width: 100%;
+  margin-top: 8px;
+  height: 42px;
+  border-radius: 14px;
+  border: 1px solid #F0D9C5;
+  background: #FBE9D8;
+  color: #9A3313;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+.btn-expand-more-places:hover {
+  background: #F6DEC6;
+}
+
+/* ==========================================================================
+   7. INTERACTIVE FULL MAP VIEW (When "Bản đồ" Tab is Selected)
+   ========================================================================== */
+.interactive-map-box {
+  position: relative;
+  height: 360px;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1.5px solid var(--border-light);
+  box-shadow: var(--shadow-md);
+  background: #EAE2D6;
+}
+
+.map-pin-marker {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  background: var(--bg-surface);
+  border: 2px solid var(--primary);
+  border-radius: 99px;
+  padding: 4px 9px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.16s ease;
+  z-index: 4;
+}
+
+.map-pin-marker:hover,
+.map-pin-marker.selected {
+  background: var(--primary);
+  color: #FFFFFF;
+  transform: translate(-50%, -108%) scale(1.08);
+  z-index: 10;
+}
+
+/* ==========================================================================
+   8. FEEDBACK & MENU MODAL STYLES
+   ========================================================================== */
+.menu-list-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.menu-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #FAF5F0;
+  border: 1px solid var(--border-light);
+}
+
+.menu-item-row.within-budget {
+  background: #F2FAF5;
+  border-color: #BFE6CE;
+}
+
+.feedback-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.feedback-card-item {
+  padding: 12px;
+  border-radius: 14px;
+  background: #FAF5F0;
+  border: 1px solid var(--border-light);
+}
+
+.feedback-form-box {
+  background: #FDF8F4;
+  border: 1px solid var(--border-chip);
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.star-picker {
+  display: flex;
+  gap: 6px;
+  font-size: 1.35rem;
+  cursor: pointer;
+}
+
+.form-input-field, .form-textarea-field {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-chip);
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  outline: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
