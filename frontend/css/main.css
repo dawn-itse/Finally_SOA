@@ -186,6 +186,49 @@ html, body {
   color: var(--primary);
 }
 
+#dockFullAddress {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-current-location {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.btn-current-location:hover:not(:disabled) {
+  background: var(--bg-surface);
+}
+
+.btn-current-location:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.location-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .dock-input-row {
   position: relative;
   margin-bottom: 10px;

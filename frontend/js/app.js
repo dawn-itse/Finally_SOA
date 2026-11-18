@@ -16,6 +16,8 @@ const appState = {
   weatherContext: null,
   locations: SOAApiClient.getLocations(),
   currentLocationIndex: 0,
+  currentLocationLabel: null,
+  currentCoordinates: null,
   dish: null,
   budget: null,
   radiusKm: 2,
@@ -36,6 +38,9 @@ const btnSubmitSearchEl = document.getElementById('btnSubmitSearch');
 const btnNewSearchHeaderEl = document.getElementById('btnNewSearchHeader');
 const chipLocationLabelEl = document.getElementById('chipLocationLabel');
 const dockFullAddressEl = document.getElementById('dockFullAddress');
+const btnCurrentLocationEl = document.getElementById('btnCurrentLocation');
+const currentLocationButtonLabelEl = document.getElementById('currentLocationButtonLabel');
+const locationStatusEl = document.getElementById('locationStatus');
 const chipBudgetBtnEl = document.getElementById('chipBudgetBtn');
 const chipBudgetLabelEl = document.getElementById('chipBudgetLabel');
 const chipRadiusLabelEl = document.getElementById('chipRadiusLabel');
@@ -65,8 +70,9 @@ function initApp() {
  */
 function renderUI() {
   const loc = appState.locations[appState.currentLocationIndex];
-  chipLocationLabelEl.textContent = loc.shortLabel;
-  dockFullAddressEl.textContent = `Tìm quanh ${loc.fullAddress}`;
+  const locationLabel = appState.currentLocationLabel || loc.fullAddress;
+  chipLocationLabelEl.textContent = appState.currentLocationLabel ? 'Vị trí hiện tại' : loc.shortLabel;
+  dockFullAddressEl.textContent = `Tìm quanh ${locationLabel}`;
   chipRadiusLabelEl.textContent = `${appState.radiusKm}km`;
 
   // Show "+ Tìm mới" button in header when not on HOME screen
@@ -245,10 +251,67 @@ function startPlaceholderTypewriter() {
   }, 130);
 }
 
+async function updateWeatherAtCoordinates(coordinates) {
+  appState.weatherContext = await SOAApiClient.getWeatherForCoordinates(coordinates);
+  if (appState.weatherContext.weatherSource !== 'weatherapi') {
+    locationStatusEl.textContent = 'Đã có tọa độ, nhưng chưa lấy được thời tiết trực tiếp; đang dùng dữ liệu mẫu.';
+  } else {
+    locationStatusEl.textContent = 'Đã cập nhật thời tiết theo tọa độ thiết bị.';
+  }
+  renderUI();
+}
+
+function requestDeviceLocation() {
+  if (!navigator.geolocation) {
+    locationStatusEl.textContent = 'Trình duyệt này không hỗ trợ lấy vị trí.';
+    return;
+  }
+
+  btnCurrentLocationEl.disabled = true;
+  currentLocationButtonLabelEl.textContent = 'Đang định vị…';
+  locationStatusEl.textContent = 'Đang yêu cầu quyền vị trí từ trình duyệt.';
+
+  navigator.geolocation.getCurrentPosition(
+    async ({ coords }) => {
+      appState.currentCoordinates = {
+        latitude: coords.latitude,
+        longitude: coords.longitude
+      };
+      appState.currentLocationLabel = 'Vị trí hiện tại';
+      renderUI();
+
+      try {
+        await updateWeatherAtCoordinates(appState.currentCoordinates);
+        const placeName = appState.weatherContext.location?.name;
+        if (placeName) {
+          appState.currentLocationLabel = `Vị trí hiện tại · ${placeName}`;
+          renderUI();
+        }
+      } finally {
+        btnCurrentLocationEl.disabled = false;
+        currentLocationButtonLabelEl.textContent = 'Vị trí hiện tại';
+      }
+    },
+    (error) => {
+      const messages = {
+        1: 'Bạn chưa cấp quyền vị trí. Hãy cho phép Location trong cài đặt trang web của trình duyệt.',
+        2: 'Thiết bị chưa xác định được vị trí. Hãy bật dịch vụ vị trí rồi thử lại.',
+        3: 'Lấy vị trí quá lâu. Hãy thử lại.'
+      };
+      locationStatusEl.textContent = messages[error.code] || 'Không lấy được vị trí thiết bị.';
+      btnCurrentLocationEl.disabled = false;
+      currentLocationButtonLabelEl.textContent = 'Vị trí hiện tại';
+    },
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 300000 }
+  );
+}
+
 /**
  * Event Delegation & Handlers
  */
 function bindGlobalEvents() {
+  btnCurrentLocationEl.addEventListener('click', requestDeviceLocation);
+
   // Search submit button & Enter key
   btnSubmitSearchEl.addEventListener('click', () => {
     if (searchInputEl.value.trim()) {
@@ -290,6 +353,10 @@ function bindGlobalEvents() {
   document.getElementById('chipLocationBtn').addEventListener('click', () => {
     appState.currentLocationIndex = (appState.currentLocationIndex + 1) % appState.locations.length;
     const loc = appState.locations[appState.currentLocationIndex];
+    appState.currentLocationLabel = null;
+    appState.currentCoordinates = { latitude: loc.lat, longitude: loc.lng };
+    locationStatusEl.textContent = '';
+    updateWeatherAtCoordinates(appState.currentCoordinates);
     emitServiceTrace('user-preference-service', 'PUT /api/v1/user/location', `Đổi vị trí: ${loc.fullAddress}`);
     if (appState.step === 'RESULTS') {
       appState.searchResults = SOAApiClient.searchRestaurants(appState);

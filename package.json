@@ -1,0 +1,28 @@
+{
+  "name": "finally_soa",
+  "version": "1.0.0",
+  "description": "Dự án xây dựng ứng dụng **Mua Gì Đây** — gợi ý món ăn theo ngữ cảnh thời tiết/thời gian, tìm kiếm hội thoại tự nhiên (món ăn + giá tiền mong muốn), định vị quán xung quanh theo bán kính kèm lộ trình di chuyển và tổng hợp đánh giá (feedback) thực tế.",
+  "main": "server-preview.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dawn-itse/Finally_SOA.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/dawn-itse/Finally_SOA/issues"
+  },
+  "homepage": "https://github.com/dawn-itse/Finally_SOA#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.3.0"
+  }
+}
