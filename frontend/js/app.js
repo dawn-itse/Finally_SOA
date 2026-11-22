@@ -7,7 +7,8 @@ import { parseUserUtterance, formatK } from './services/nlpParser.js';
 import {
   renderHomeHero,
   renderConversationStream,
-  renderMenuAndFeedbackModal
+  renderMenuAndFeedbackModal,
+  renderPlacesExplorer
 } from './components/renderers.js';
 
 const appState = {
@@ -16,6 +17,8 @@ const appState = {
   weatherContext: null,
   locations: SOAApiClient.getLocations(),
   currentLocationIndex: 0,
+  currentLocationLabel: null,
+  currentCoordinates: null,
   dish: null,
   budget: null,
   radiusKm: 2,
@@ -26,16 +29,25 @@ const appState = {
   messages: [],
   searchResults: null,
   favorites: new Set(),
-  showAllNearby: false
+  showAllNearby: false,
+  explorerOpen: false,
+  explorerMenuId: null
 };
 
 // DOM Elements
+const appShellEl = document.querySelector('.app-shell');
+const placesExplorerEl = document.getElementById('placesExplorer');
+const soaSidePanelEl = document.getElementById('soaSidePanel');
+const desktopQuery = window.matchMedia('(min-width: 1024px)');
 const viewportEl = document.getElementById('appMainViewport');
 const searchInputEl = document.getElementById('dockSearchInput');
 const btnSubmitSearchEl = document.getElementById('btnSubmitSearch');
 const btnNewSearchHeaderEl = document.getElementById('btnNewSearchHeader');
 const chipLocationLabelEl = document.getElementById('chipLocationLabel');
 const dockFullAddressEl = document.getElementById('dockFullAddress');
+const btnCurrentLocationEl = document.getElementById('btnCurrentLocation');
+const currentLocationButtonLabelEl = document.getElementById('currentLocationButtonLabel');
+const locationStatusEl = document.getElementById('locationStatus');
 const chipBudgetBtnEl = document.getElementById('chipBudgetBtn');
 const chipBudgetLabelEl = document.getElementById('chipBudgetLabel');
 const chipRadiusLabelEl = document.getElementById('chipRadiusLabel');
@@ -65,9 +77,12 @@ function initApp() {
  */
 function renderUI() {
   const loc = appState.locations[appState.currentLocationIndex];
-  chipLocationLabelEl.textContent = loc.shortLabel;
-  dockFullAddressEl.textContent = `Tìm quanh ${loc.fullAddress}`;
+  const locationLabel = appState.currentLocationLabel || loc.fullAddress;
+  chipLocationLabelEl.textContent = appState.currentLocationLabel ? 'Vị trí hiện tại' : loc.shortLabel;
+  dockFullAddressEl.textContent = `Tìm quanh ${locationLabel}`;
   chipRadiusLabelEl.textContent = `${appState.radiusKm}km`;
+  appShellEl.classList.toggle('is-home', appState.step === 'HOME');
+  if (appState.explorerOpen) renderExplorer();
 
   // Show "+ Tìm mới" button in header when not on HOME screen
   if (appState.step === 'HOME') {
@@ -190,8 +205,18 @@ function triggerRadarThenResults(delayMs = 950) {
       partySize: appState.partySize
     });
     renderUI();
-    scrollToBottom();
+    scrollToResults();
   }, delayMs);
+}
+
+/** Scroll so the results header (summary + sort chips) sits at the top of the viewport */
+function scrollToResults() {
+  requestAnimationFrame(() => {
+    const el = viewportEl.querySelector('.results-container');
+    if (!el) return scrollToBottom();
+    const offset = el.getBoundingClientRect().top - viewportEl.getBoundingClientRect().top;
+    viewportEl.scrollTop += offset - 12;
+  });
 }
 
 function scrollToBottom() {
@@ -245,10 +270,67 @@ function startPlaceholderTypewriter() {
   }, 130);
 }
 
+async function updateWeatherAtCoordinates(coordinates) {
+  appState.weatherContext = await SOAApiClient.getWeatherForCoordinates(coordinates);
+  if (appState.weatherContext.weatherSource !== 'weatherapi') {
+    locationStatusEl.textContent = 'Đã có tọa độ, nhưng chưa lấy được thời tiết trực tiếp; đang dùng dữ liệu mẫu.';
+  } else {
+    locationStatusEl.textContent = 'Đã cập nhật thời tiết theo tọa độ thiết bị.';
+  }
+  renderUI();
+}
+
+function requestDeviceLocation() {
+  if (!navigator.geolocation) {
+    locationStatusEl.textContent = 'Trình duyệt này không hỗ trợ lấy vị trí.';
+    return;
+  }
+
+  btnCurrentLocationEl.disabled = true;
+  currentLocationButtonLabelEl.textContent = 'Đang định vị…';
+  locationStatusEl.textContent = 'Đang yêu cầu quyền vị trí từ trình duyệt.';
+
+  navigator.geolocation.getCurrentPosition(
+    async ({ coords }) => {
+      appState.currentCoordinates = {
+        latitude: coords.latitude,
+        longitude: coords.longitude
+      };
+      appState.currentLocationLabel = 'Vị trí hiện tại';
+      renderUI();
+
+      try {
+        await updateWeatherAtCoordinates(appState.currentCoordinates);
+        const placeName = appState.weatherContext.location?.name;
+        if (placeName) {
+          appState.currentLocationLabel = `Vị trí hiện tại · ${placeName}`;
+          renderUI();
+        }
+      } finally {
+        btnCurrentLocationEl.disabled = false;
+        currentLocationButtonLabelEl.textContent = 'Vị trí hiện tại';
+      }
+    },
+    (error) => {
+      const messages = {
+        1: 'Bạn chưa cấp quyền vị trí. Hãy cho phép Location trong cài đặt trang web của trình duyệt.',
+        2: 'Thiết bị chưa xác định được vị trí. Hãy bật dịch vụ vị trí rồi thử lại.',
+        3: 'Lấy vị trí quá lâu. Hãy thử lại.'
+      };
+      locationStatusEl.textContent = messages[error.code] || 'Không lấy được vị trí thiết bị.';
+      btnCurrentLocationEl.disabled = false;
+      currentLocationButtonLabelEl.textContent = 'Vị trí hiện tại';
+    },
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 300000 }
+  );
+}
+
 /**
  * Event Delegation & Handlers
  */
 function bindGlobalEvents() {
+  btnCurrentLocationEl.addEventListener('click', requestDeviceLocation);
+
   // Search submit button & Enter key
   btnSubmitSearchEl.addEventListener('click', () => {
     if (searchInputEl.value.trim()) {
@@ -268,6 +350,7 @@ function bindGlobalEvents() {
   // Reset to Home ("+ Tìm mới" or Brand Logo click)
   const resetToHome = () => {
     if (scanTimer) clearTimeout(scanTimer);
+    closeExplorer();
     appState.step = 'HOME';
     appState.dish = null;
     appState.budget = null;
@@ -290,6 +373,10 @@ function bindGlobalEvents() {
   document.getElementById('chipLocationBtn').addEventListener('click', () => {
     appState.currentLocationIndex = (appState.currentLocationIndex + 1) % appState.locations.length;
     const loc = appState.locations[appState.currentLocationIndex];
+    appState.currentLocationLabel = null;
+    appState.currentCoordinates = { latitude: loc.lat, longitude: loc.lng };
+    locationStatusEl.textContent = '';
+    updateWeatherAtCoordinates(appState.currentCoordinates);
     emitServiceTrace('user-preference-service', 'PUT /api/v1/user/location', `Đổi vị trí: ${loc.fullAddress}`);
     if (appState.step === 'RESULTS') {
       appState.searchResults = SOAApiClient.searchRestaurants(appState);
@@ -360,13 +447,7 @@ function bindGlobalEvents() {
     // 6. Toggle Favorite Heart
     const favBtn = e.target.closest('[data-action="toggle-fav"]');
     if (favBtn) {
-      const id = favBtn.getAttribute('data-id');
-      if (appState.favorites.has(id)) {
-        appState.favorites.delete(id);
-      } else {
-        appState.favorites.add(id);
-      }
-      emitServiceTrace('user-preference-service', 'POST /api/v1/user/favorites', `Restaurant ID: ${id}`);
+      toggleFavorite(favBtn.getAttribute('data-id'));
       renderUI();
       return;
     }
@@ -379,14 +460,10 @@ function bindGlobalEvents() {
       return;
     }
 
-    // 8. Open Directions
+    // 8. Open Directions (Google Maps search URL)
     const dirBtn = e.target.closest('[data-action="open-directions"]');
     if (dirBtn) {
-      const hero = appState.searchResults?.heroRestaurant;
-      if (hero) {
-        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hero.name + ' ' + hero.address)}`;
-        window.open(mapsUrl, '_blank', 'noopener');
-      }
+      openDirections(dirBtn.getAttribute('data-id'));
       return;
     }
 
@@ -405,11 +482,73 @@ function bindGlobalEvents() {
       return;
     }
 
-    // 10. Expand More Nearby Places
-    if (e.target.closest('#btnExpandMorePlaces') || e.target.closest('#btnToggleAllNearby')) {
-      appState.showAllNearby = !appState.showAllNearby;
-      renderUI();
+    // 10. Open full "Quán quanh bạn" explorer
+    if (e.target.closest('#btnOpenExplorer') || e.target.closest('#btnOpenExplorerMore')) {
+      openExplorer();
     }
+  });
+
+  // Places Explorer interactions
+  placesExplorerEl.addEventListener('click', (e) => {
+    if (e.target.closest('[data-action="close-explorer"]')) {
+      closeExplorer();
+      return;
+    }
+
+    const sortChip = e.target.closest('[data-sort]');
+    if (sortChip) {
+      appState.sortBy = sortChip.getAttribute('data-sort');
+      appState.searchResults = SOAApiClient.searchRestaurants(appState);
+      renderUI();
+      return;
+    }
+
+    const favBtn = e.target.closest('[data-action="toggle-fav"]');
+    if (favBtn) {
+      toggleFavorite(favBtn.getAttribute('data-id'));
+      renderUI();
+      return;
+    }
+
+    const menuBtn = e.target.closest('[data-action="explorer-menu"]');
+    if (menuBtn) {
+      const id = menuBtn.getAttribute('data-id');
+      if (desktopQuery.matches) {
+        appState.explorerMenuId = id;
+        renderExplorer();
+      } else {
+        openRestaurantModal(id);
+      }
+      return;
+    }
+
+    const dirBtn = e.target.closest('[data-action="open-directions"]');
+    if (dirBtn) {
+      openDirections(dirBtn.getAttribute('data-id'));
+    }
+  });
+
+  placesExplorerEl.addEventListener('submit', (e) => {
+    const form = e.target.closest('#formAddFeedback');
+    if (!form) return;
+    e.preventDefault();
+    submitFeedbackForm(form);
+    renderUI();
+  });
+
+  // SOA Trace drawer (desktop)
+  document.getElementById('btnToggleSoaPanel').addEventListener('click', () => {
+    document.body.classList.toggle('soa-panel-open');
+  });
+  document.getElementById('btnCloseSoaPanel').addEventListener('click', () => {
+    document.body.classList.remove('soa-panel-open');
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (modalOverlayEl.classList.contains('open')) closeModal();
+    else if (appState.explorerOpen) closeExplorer();
+    else document.body.classList.remove('soa-panel-open');
   });
 
   // Modal Close & Form Submit
@@ -423,16 +562,8 @@ function bindGlobalEvents() {
     const form = e.target.closest('#formAddFeedback');
     if (form) {
       e.preventDefault();
-      const restId = form.getAttribute('data-restaurant-id');
-      const formData = new FormData(form);
-      const updated = SOAApiClient.addFeedback(restId, {
-        author: formData.get('author'),
-        rating: formData.get('rating'),
-        verifiedPrice: formData.get('verifiedPrice'),
-        comment: formData.get('comment')
-      });
-      if (updated) {
-        appState.searchResults = SOAApiClient.searchRestaurants(appState);
+      const restId = submitFeedbackForm(form);
+      if (restId) {
         openRestaurantModal(restId);
         renderUI();
       }
@@ -501,11 +632,78 @@ function closeModal() {
   modalOverlayEl.classList.remove('open');
 }
 
+function getAllResultPlaces() {
+  const results = appState.searchResults;
+  return results ? [results.heroRestaurant, ...results.nearbyOthers].filter(Boolean) : [];
+}
+
+function toggleFavorite(id) {
+  if (appState.favorites.has(id)) {
+    appState.favorites.delete(id);
+  } else {
+    appState.favorites.add(id);
+  }
+  emitServiceTrace('user-preference-service', 'POST /api/v1/user/favorites', `Restaurant ID: ${id}`);
+}
+
+function openDirections(id) {
+  const place = getAllResultPlaces().find((r) => r.id === id) || appState.searchResults?.heroRestaurant;
+  if (!place) return;
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name + ' ' + place.address)}`;
+  window.open(mapsUrl, '_blank', 'noopener');
+}
+
+/** Returns the restaurant id when the feedback was saved, otherwise null */
+function submitFeedbackForm(form) {
+  const restId = form.getAttribute('data-restaurant-id');
+  const formData = new FormData(form);
+  const updated = SOAApiClient.addFeedback(restId, {
+    author: formData.get('author'),
+    rating: formData.get('rating'),
+    verifiedPrice: formData.get('verifiedPrice'),
+    comment: formData.get('comment')
+  });
+  if (!updated) return null;
+  appState.searchResults = SOAApiClient.searchRestaurants(appState);
+  return restId;
+}
+
+function renderExplorer() {
+  const scrollList = placesExplorerEl.querySelector('.explorer-list');
+  const scrollPane = placesExplorerEl.querySelector('.explorer-detail-pane');
+  const listTop = scrollList ? scrollList.scrollTop : 0;
+  const paneTop = scrollPane ? scrollPane.scrollTop : 0;
+
+  placesExplorerEl.innerHTML = renderPlacesExplorer(appState, appState.explorerMenuId);
+
+  const newList = placesExplorerEl.querySelector('.explorer-list');
+  if (newList) newList.scrollTop = listTop;
+  const newPane = placesExplorerEl.querySelector('.explorer-detail-pane');
+  if (newPane && paneTop) newPane.scrollTop = paneTop;
+}
+
+function openExplorer() {
+  if (!appState.searchResults) return;
+  appState.explorerOpen = true;
+  appState.explorerMenuId = null;
+  renderExplorer();
+  placesExplorerEl.classList.add('open');
+  placesExplorerEl.setAttribute('aria-hidden', 'false');
+  emitServiceTrace('restaurant-search-service', 'GET /api/v1/restaurants/nearby', `Mở danh sách ${getAllResultPlaces().length} quán quanh bạn`);
+}
+
+function closeExplorer() {
+  appState.explorerOpen = false;
+  placesExplorerEl.classList.remove('open');
+  placesExplorerEl.setAttribute('aria-hidden', 'true');
+}
+
 /**
  * Jump directly to any of the 8 Screenshot States for easy demonstration
  */
 function jumpToScreenshotState(screenNum) {
   if (scanTimer) clearTimeout(scanTimer);
+  closeExplorer();
 
   if (screenNum === 1) {
     appState.step = 'HOME';

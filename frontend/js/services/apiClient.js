@@ -9,6 +9,7 @@ import { formatK } from './nlpParser.js';
 
 const serviceLogs = [];
 let logSubscriber = null;
+const WEATHER_SERVICE_URL = 'http://localhost:4001';
 
 export function onServiceLog(callback) {
   logSubscriber = callback;
@@ -34,6 +35,32 @@ export const SOAApiClient = {
   /**
    * 1. Context & Weather Service
    */
+  async getWeatherForCoordinates({ latitude, longitude }) {
+    try {
+      const url = new URL(`${WEATHER_SERVICE_URL}/api/v1/context/morning-greeting`);
+      url.searchParams.set('q', `${latitude},${longitude}`);
+      const response = await fetch(url, { signal: AbortSignal.timeout(7000) });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const payload = await response.json();
+      if (!payload.success || !payload.data) throw new Error('Invalid weather response');
+
+      emitServiceTrace(
+        'context-weather-service',
+        'GET /api/v1/context/morning-greeting?q=device-coordinates',
+        `Thời tiết tại vị trí hiện tại: ${payload.data.temp}°C (${payload.data.condition})`
+      );
+      return { ...payload.data, weatherSource: payload.source || 'weatherapi' };
+    } catch (error) {
+      emitServiceTrace(
+        'context-weather-service',
+        'GET /api/v1/context/morning-greeting?q=device-coordinates',
+        'Không kết nối được service thời tiết; dùng dữ liệu mẫu'
+      );
+      return { ...this.getWeatherGreeting(0), weatherSource: 'service-unavailable-fallback' };
+    }
+  },
+
   getWeatherGreeting(contextIndex = 0) {
     const ctx = WEATHER_CONTEXTS[contextIndex % WEATHER_CONTEXTS.length];
     emitServiceTrace(

@@ -167,61 +167,91 @@ export function renderResultsSection(state) {
 
   return `
     <div class="results-container">
-      <!-- Summary Header ("Phở bò · tối đa 50k" / "9 quán vừa tiền trong 2km") -->
-      <div class="query-summary-bar">
-        <div class="query-dish-thumb">
-          ${getDishIllustration(dish, 38)}
+      <div class="results-top-row">
+        <!-- Summary Header ("Phở bò · tối đa 50k" / "9 quán vừa tiền trong 2km") -->
+        <div class="query-summary-bar">
+          <div class="query-dish-thumb">
+            ${getDishIllustration(dish, 38)}
+          </div>
+          <div class="query-summary-text">
+            <h3>${escapeHtml(dish || 'Món ăn sáng')} · tối đa ${formatK(budget)}${partyNote}</h3>
+            <p>${totalMatchedCount} quán vừa tiền trong ${radiusKm}km</p>
+          </div>
         </div>
-        <div class="query-summary-text">
-          <h3>${escapeHtml(dish || 'Món ăn sáng')} · tối đa ${formatK(budget)}${partyNote}</h3>
-          <p>${totalMatchedCount} quán vừa tiền trong ${radiusKm}km</p>
+
+        <!-- Segmented View Toggle: Danh sách | Bản đồ -->
+        <div class="view-mode-segmented">
+          <button class="btn-view-tab ${viewMode === 'list' ? 'active' : ''}" data-view-mode="list">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+            Danh sách
+          </button>
+          <button class="btn-view-tab ${viewMode === 'map' ? 'active' : ''}" data-view-mode="map">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+              <line x1="8" y1="2" x2="8" y2="18"></line>
+              <line x1="16" y1="6" x2="16" y2="22"></line>
+            </svg>
+            Bản đồ
+          </button>
         </div>
       </div>
 
-      <!-- Segmented View Toggle: Danh sách | Bản đồ -->
-      <div class="view-mode-segmented">
-        <button class="btn-view-tab ${viewMode === 'list' ? 'active' : ''}" data-view-mode="list">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <line x1="8" y1="6" x2="21" y2="6"></line>
-            <line x1="8" y1="12" x2="21" y2="12"></line>
-            <line x1="8" y1="18" x2="21" y2="18"></line>
-            <line x1="3" y1="6" x2="3.01" y2="6"></line>
-            <line x1="3" y1="12" x2="3.01" y2="12"></line>
-            <line x1="3" y1="18" x2="3.01" y2="18"></line>
-          </svg>
-          Danh sách
-        </button>
-        <button class="btn-view-tab ${viewMode === 'map' ? 'active' : ''}" data-view-mode="map">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
-            <line x1="8" y1="2" x2="8" y2="18"></line>
-            <line x1="16" y1="6" x2="16" y2="22"></line>
-          </svg>
-          Bản đồ
-        </button>
-      </div>
-
-      <!-- Sort Chips Row -->
-      <div class="sort-chips-row">
-        <button class="btn-sort-chip ${sortBy === 'recommended' ? 'active' : ''}" data-sort="recommended">
-          ✨ Đề xuất
-        </button>
-        <button class="btn-sort-chip ${sortBy === 'distance' ? 'active' : ''}" data-sort="distance">
-          📍 Gần → xa
-        </button>
-        <button class="btn-sort-chip ${sortBy === 'rating' ? 'active' : ''}" data-sort="rating">
-          ⭐ Đánh giá
-        </button>
-        <button class="btn-sort-chip ${sortBy === 'price' ? 'active' : ''}" data-sort="price">
-          💲 Giá
-        </button>
-      </div>
+      ${renderSortChips(sortBy)}
 
       ${
         viewMode === 'map'
           ? renderInteractiveMapView(heroRestaurant, nearbyOthers)
           : renderHeroCardAndNearbyList(heroRestaurant, nearbyOthers, favorites, showAllNearby, partySize)
       }
+    </div>
+  `;
+}
+
+const SORT_ICONS = {
+  recommended: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4z"></path><path d="M19 3v4M17 5h4"></path></svg>`,
+  distance: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>`,
+  rating: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`,
+  price: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><path d="M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .9-3 2s1.3 1.7 3 2 3 .9 3 2-1.3 2-3 2c-1.4 0-2.5-.5-3-1.5M12 6v2m0 8v2"></path></svg>`
+};
+
+/**
+ * Sort Chips Row (Đề xuất, Gần → xa, Đánh giá, Rẻ → đắt) — shared by results & explorer
+ */
+export function renderSortChips(sortBy) {
+  const items = [
+    ['recommended', 'Đề xuất'],
+    ['distance', 'Gần → xa'],
+    ['rating', 'Đánh giá'],
+    ['price', 'Rẻ → đắt']
+  ];
+  return `
+    <div class="sort-chips-row">
+      ${items
+        .map(
+          ([key, label]) => `
+        <button class="btn-sort-chip ${sortBy === key ? 'active' : ''}" data-sort="${key}">
+          ${SORT_ICONS[key]} ${label}
+        </button>`
+        )
+        .join('')}
+    </div>
+  `;
+}
+
+function renderMiniCardPrice(place) {
+  const prefix = place.effectiveMinPrice < place.maxPrice ? '<span class="price-from">từ</span>' : '';
+  const leftover = place.leftoverAmount > 0 ? `<span class="price-leftover">dư ${formatK(place.leftoverAmount)}</span>` : '';
+  return `
+    <div class="mini-card-price">
+      <div class="price-main">${prefix}${formatK(place.effectiveMinPrice ?? place.minPrice)}</div>
+      ${leftover}
     </div>
   `;
 }
@@ -242,6 +272,7 @@ function renderHeroCardAndNearbyList(hero, nearbyOthers, favorites, showAllNearb
       : '';
 
   return `
+    <div class="results-split">
     <!-- Hero Restaurant Card -->
     <article class="hero-restaurant-card" data-restaurant-id="${hero.id}">
       <div class="card-minimap-header">
@@ -267,11 +298,14 @@ function renderHeroCardAndNearbyList(hero, nearbyOthers, favorites, showAllNearb
       </div>
 
       <div class="hero-card-body">
-        ${
-          hero.isPriceVerified
-            ? `<div class="verified-badge">✓ Đã xác minh</div>`
-            : `<div class="unverified-badge">⏳ Đang ước giá...</div>`
-        }
+        <div class="hero-badges-row">
+          <div class="recommend-badge">${SORT_ICONS.recommended} Nên chọn</div>
+          ${
+            hero.isPriceVerified
+              ? `<div class="verified-badge">✓ Đã xác minh</div>`
+              : `<div class="unverified-badge">⏳ Đang ước giá...</div>`
+          }
+        </div>
 
         <h2 class="restaurant-title">${escapeHtml(hero.name)}</h2>
 
@@ -347,8 +381,8 @@ function renderHeroCardAndNearbyList(hero, nearbyOthers, favorites, showAllNearb
       <div class="nearby-others-section">
         <div class="nearby-section-header">
           <h4>Quán khác gần đây</h4>
-          <button class="btn-link-orange" id="btnToggleAllNearby">
-            ${showAllNearby ? 'Thu gọn' : `Xem cả ${nearbyOthers.length + 9} quán`}
+          <button class="btn-link-orange" id="btnOpenExplorer">
+            Xem cả ${nearbyOthers.length + 1} quán
           </button>
         </div>
 
@@ -367,19 +401,21 @@ function renderHeroCardAndNearbyList(hero, nearbyOthers, favorites, showAllNearb
                     ${place.isPriceVerified ? `Từ ${formatK(place.minPrice)}` : 'Đang ước giá...'} · ${place.distanceKm.toString().replace('.', ',')}km · ${place.travelMinutes} phút đi xe
                   </div>
                 </div>
+                ${renderMiniCardPrice(place)}
               </div>
             `
             )
             .join('')}
         </div>
 
-        <button class="btn-expand-more-places" id="btnExpandMorePlaces">
-          ${showAllNearby ? '✓ Đang hiển thị toàn bộ quán quanh bạn' : '+ Xem thêm 8 quán khác'}
+        <button class="btn-expand-more-places" id="btnOpenExplorerMore">
+          + Xem tất cả quán quanh bạn
         </button>
       </div>
     `
         : ''
     }
+    </div>
   `;
 }
 
@@ -389,6 +425,7 @@ function renderHeroCardAndNearbyList(hero, nearbyOthers, favorites, showAllNearb
 function renderInteractiveMapView(hero, nearbyOthers) {
   const allPlaces = [hero, ...nearbyOthers];
   return `
+    <div class="map-view-layout">
     <div class="interactive-map-box">
       ${FoodIllustrations.miniRouteMap()}
       ${allPlaces
@@ -406,6 +443,124 @@ function renderInteractiveMapView(hero, nearbyOthers) {
         )
         .join('')}
     </div>
+    <div class="map-side-list">
+      ${allPlaces
+        .map(
+          (place, idx) => `
+          <div class="nearby-mini-card ${idx === 0 ? 'is-selected' : ''}" data-action="promote-hero" data-id="${place.id}">
+            <div class="mini-card-thumb">${getDishIllustration(place.categoryLabel, 40)}</div>
+            <div class="mini-card-info">
+              <div class="comparison-tag">${idx === 0 ? 'Đang chọn' : escapeHtml(place.comparisonBadge || `Cách ${place.distanceKm}km`)}</div>
+              <div class="mini-card-title">${escapeHtml(place.name)}</div>
+              <div class="mini-card-sub">${place.distanceKm.toString().replace('.', ',')}km · ${place.travelMinutes} phút đi xe</div>
+            </div>
+            ${renderMiniCardPrice(place)}
+          </div>
+        `
+        )
+        .join('')}
+    </div>
+    </div>
+  `;
+}
+
+/**
+ * Full Places Explorer ("Quán quanh bạn") — list of all matched places + menu detail pane
+ */
+export function renderPlacesExplorer(state, selectedMenuId) {
+  const { dish, budget, radiusKm, sortBy, favorites } = state;
+  const results = state.searchResults;
+  const places = results ? [results.heroRestaurant, ...results.nearbyOthers].filter(Boolean) : [];
+  const selected = places.find((p) => p.id === selectedMenuId);
+
+  return `
+    <div class="explorer-header">
+      <div class="explorer-header-top">
+        <div>
+          <h2 class="explorer-title">Quán quanh bạn</h2>
+          <p class="explorer-subtitle">${escapeHtml(dish || 'Món ăn')} · tối đa ${formatK(budget)} · trong ${radiusKm}km</p>
+        </div>
+        <button class="btn-close-modal" data-action="close-explorer" title="Đóng">✕</button>
+      </div>
+      ${renderSortChips(sortBy)}
+    </div>
+
+    <div class="explorer-body">
+      <div class="explorer-list">
+        ${places.map((p) => renderExplorerPlaceCard(p, favorites, p.id === selectedMenuId)).join('')}
+      </div>
+      <aside class="explorer-detail-pane">
+        ${
+          selected
+            ? `
+          <div class="pane-header">
+            <div>
+              <div class="modal-title">${escapeHtml(selected.name)}</div>
+              <div class="pane-address">${escapeHtml(selected.address)}</div>
+            </div>
+          </div>
+          ${renderMenuAndFeedbackBody(selected, budget)}
+        `
+            : `
+          <div class="pane-placeholder">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 2v7c0 1.1.9 2 2 2h2a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"></path></svg>
+            <span>Bấm "Menu" ở một quán để xem thực đơn và giá ở đây.</span>
+          </div>
+        `
+        }
+      </aside>
+    </div>
+  `;
+}
+
+function renderExplorerPlaceCard(place, favorites, isActive) {
+  const isFav = favorites.has(place.id);
+  const fromLabel = place.effectiveMinPrice < place.maxPrice ? '<span class="price-from">từ</span>' : '';
+  return `
+    <article class="explorer-card ${isActive ? 'active' : ''}">
+      <div class="explorer-card-head">
+        <div class="mini-card-thumb">${getDishIllustration(place.categoryLabel, 42)}</div>
+        <div class="explorer-card-info">
+          <h3>${escapeHtml(place.name)}</h3>
+          <div class="restaurant-meta-line">
+            <span>${escapeHtml(place.categoryLabel)}</span><span>·</span>
+            <span>${place.distanceKm.toString().replace('.', ',')}km</span><span>·</span>
+            <span>🛵 ${place.travelMinutes} phút</span>
+          </div>
+          <div class="restaurant-address-line">${escapeHtml(place.address)}</div>
+        </div>
+      </div>
+
+      <div class="explorer-price-row">
+        <div class="explorer-price">${fromLabel}<strong>${formatK(place.effectiveMinPrice ?? place.minPrice)}</strong></div>
+        ${place.leftoverAmount > 0 ? `<span class="budget-leftover-pill">dư ${formatK(place.leftoverAmount)}</span>` : ''}
+        ${place.isPriceVerified ? `<span class="verified-badge">✓ Đã xác minh</span>` : `<span class="unverified-badge">⏳ Đang ước giá</span>`}
+        <div class="explorer-card-icons">
+          <button class="btn-ghost-icon ${isFav ? 'favorited' : ''}" data-action="toggle-fav" data-id="${place.id}" title="Lưu quán yêu thích">${isFav ? '♥' : '♡'}</button>
+          <button class="btn-ghost-icon" data-action="explorer-menu" data-id="${place.id}" title="Xem chi tiết">⋯</button>
+        </div>
+      </div>
+
+      <div class="open-hours-line">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        Mở tới ${escapeHtml(place.openUntil)} · ⭐ ${place.rating.toFixed(1).replace('.', ',')} (${place.reviewCount} đánh giá)
+      </div>
+
+      <div class="matched-dishes-row">
+        ${(place.matchedMenu || place.menu)
+          .slice(0, 3)
+          .map((item) => `<span class="dish-price-chip">${escapeHtml(item.name)} <strong>${formatK(item.price)}</strong></span>`)
+          .join('')}
+      </div>
+
+      <div class="card-cta-row">
+        <button class="btn-cta-primary" data-action="open-directions" data-id="${place.id}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="6" cy="19" r="3"></circle><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"></path><circle cx="18" cy="5" r="3"></circle></svg>
+          Chỉ đường
+        </button>
+        <button class="btn-cta-secondary" data-action="explorer-menu" data-id="${place.id}">🍴 Menu</button>
+      </div>
+    </article>
   `;
 }
 
@@ -413,7 +568,6 @@ function renderInteractiveMapView(hero, nearbyOthers) {
  * Modal Content: Restaurant Full Menu + Customer Feedbacks + New Feedback Form
  */
 export function renderMenuAndFeedbackModal(restaurant, currentBudget) {
-  const budgetLimit = currentBudget || 50000;
   return `
     <div class="modal-handle"></div>
     <div class="modal-header">
@@ -423,7 +577,13 @@ export function renderMenuAndFeedbackModal(restaurant, currentBudget) {
       </div>
       <button class="btn-close-modal" id="btnCloseModal">✕</button>
     </div>
+    ${renderMenuAndFeedbackBody(restaurant, currentBudget)}
+  `;
+}
 
+function renderMenuAndFeedbackBody(restaurant, currentBudget) {
+  const budgetLimit = currentBudget || 50000;
+  return `
     <h4 style="font-size:0.9rem;margin-bottom:8px;color:var(--primary);">🍴 Thực đơn quán (Đánh dấu món vừa túi tiền <= ${formatK(budgetLimit)})</h4>
     <div class="menu-list-group">
       ${restaurant.menu
