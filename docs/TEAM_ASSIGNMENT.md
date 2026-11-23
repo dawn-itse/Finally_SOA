@@ -5,6 +5,7 @@ Dự án: **Mua Gì Đây – Hệ thống gợi ý món ăn sáng theo ngân s�
 ---
 
 ## 🎯 Nguyên Tắc Chia Việc Cho 3 Người
+
 1. **Không đụng hàng khi code (Zero Git Conflict):** Mỗi thành viên phụ trách các thư mục Service (`services/...`) và module Frontend riêng biệt.
 2. **Ai cũng có phần SOA Backend + Frontend khi vấn đáp:** Khi giảng viên hỏi bất kỳ ai trong nhóm, mỗi người đều nắm rõ ít nhất **2 Microservices/SOA Services** + **1 luồng giao diện chính**.
 3. **Khối lượng công việc cân bằng (33% - 33% - 34%).**
@@ -13,17 +14,18 @@ Dự án: **Mua Gì Đây – Hệ thống gợi ý món ăn sáng theo ngân s�
 
 ## 👥 Bảng Phân Công Tổng Quan
 
-| Thành Viên | Vai Trò Chính | SOA Services Phụ Trách (Backend) | Phần Giao Diện Phụ Trách (Frontend) |
-| :--- | :--- | :--- | :--- |
-| **Thành viên 1 (Nhóm trưởng / System Architect)** | Điều phối API Gateway, Xử lý Ngôn ngữ Tự nhiên (NLP) & Ngữ cảnh Thời tiết | 1. `api-gateway/` (Port 4000)<br>2. `context-weather-service/` (Port 4001)<br>3. `nlp-conversation-service/` (Port 4002) | - Màn hình chào & Thời tiết (Hình 1)<br>- Luồng Chat hội thoại & Hỏi lại ngân sách (Hình 2, 4)<br>- Lớp kết nối `apiClient.js` & `nlpParser.js` |
-| **Thành viên 2 (Core Search & Geo Engineer)** | Tìm kiếm Thực đơn theo Ngân sách, Tính tiền dư & Bản đồ Lộ trình | 1. `restaurant-search-service/` (Port 4003)<br>2. `routing-geo-service/` (Port 4004)<br>3. `shared/` (Schemas & Seed Data) | - Hiệu ứng Radar quét vị trí (Hình 3, 5)<br>- Bộ lọc Sắp xếp (`Đề xuất`, `Gần → xa`, `Giá`)<br>- Chế độ xem `Bản đồ`, Mini-Map & Chỉ đường (Hình 7, 8) |
-| **Thành viên 3 (Feedback, Verification & Personalization Engineer)** | Hệ thống Đánh giá (Feedback), Xác minh Giá & Cá nhân hóa | 1. `feedback-review-service/` (Port 4005)<br>2. `user-preference-service/` (Port 4006) | - Thẻ Quán ăn chi tiết & Câu trích dẫn Review (Hình 6)<br>- Modal Thực đơn, Gửi Feedback & Xác minh giá<br>- Modal `Cá nhân hóa` & Lưu quán yêu thích (`♡`) |
+| Thành Viên                                                                 | Vai Trò Chính                                                                        | SOA Services Phụ Trách (Backend)                                                                                       | Phần Giao Diện Phụ Trách (Frontend)                                                                                                                                           |
+| :--------------------------------------------------------------------------- | :------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Thành viên 1 (Nhóm trưởng / System Architect)**                 | Điều phối API Gateway, Xử lý Ngôn ngữ Tự nhiên (NLP) & Ngữ cảnh Thời tiết | 1. `api-gateway/` (Port 4000)2. `context-weather-service/` (Port 4001)3. `nlp-conversation-service/` (Port 4002)   | - Màn hình chào & Thời tiết (Hình 1)- Luồng Chat hội thoại & Hỏi lại ngân sách (Hình 2, 4)- Lớp kết nối `apiClient.js` & `nlpParser.js`                      |
+| **Thành viên 2 (Core Search & Geo Engineer)**                        | Tìm kiếm Thực đơn theo Ngân sách, Tính tiền dư & Bản đồ Lộ trình        | 1. `restaurant-search-service/` (Port 4003)2. `routing-geo-service/` (Port 4004)3. `shared/` (Schemas & Seed Data) | - Hiệu ứng Radar quét vị trí (Hình 3, 5)- Bộ lọc Sắp xếp (`Đề xuất`, `Gần → xa`, `Giá`)- Chế độ xem `Bản đồ`, Mini-Map & Chỉ đường (Hình 7, 8) |
+| **Thành viên 3 (Feedback, Verification & Personalization Engineer)** | Hệ thống Đánh giá (Feedback), Xác minh Giá & Cá nhân hóa                     | 1. `feedback-review-service/` (Port 4005)2. `user-preference-service/` (Port 4006)                                   | - Thẻ Quán ăn chi tiết & Câu trích dẫn Review (Hình 6)- Modal Thực đơn, Gửi Feedback & Xác minh giá- Modal `Cá nhân hóa` & Lưu quán yêu thích (`♡`)     |
 
 ---
 
 ## 📋 Chi Tiết Công Việc Từng Thành Viên
 
 ### 👤 Thành Viên 1: API Gateway, Ngữ Cảnh Thời Tiết & Hội Thoại NLP
+
 - **Thư mục làm việc chính:**
   - `api-gateway/`
   - `services/context-weather-service/`
@@ -39,6 +41,7 @@ Dự án: **Mua Gì Đây – Hệ thống gợi ý món ăn sáng theo ngân s�
 ---
 
 ### 👤 Thành Viên 2: Tìm Kiếm Quán Theo Giá & Định Vị Bản Đồ (Geo-Routing)
+
 - **Thư mục làm việc chính:**
   - `services/restaurant-search-service/`
   - `services/routing-geo-service/`
@@ -57,6 +60,7 @@ Dự án: **Mua Gì Đây – Hệ thống gợi ý món ăn sáng theo ngân s�
 ---
 
 ### 👤 Thành Viên 3: Đánh Giá (Feedback), Xác Minh Giá & Cá Nhân Hóa
+
 - **Thư mục làm việc chính:**
   - `services/feedback-review-service/`
   - `services/user-preference-service/`
