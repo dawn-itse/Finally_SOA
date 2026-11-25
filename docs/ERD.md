@@ -9,6 +9,7 @@ erDiagram
         varchar email UK
         varchar password_hash
         varchar display_name
+        varchar role
         varchar account_status
         timestamptz created_at
         timestamptz updated_at
@@ -18,7 +19,10 @@ erDiagram
         varchar name
         varchar description
         varchar phone
-        varchar status
+        varchar visibility_status
+        boolean is_verified
+        timestamptz verified_at
+        uuid verified_by FK
         varchar source_type
         varchar source_ref
         timestamptz created_at
@@ -57,27 +61,28 @@ erDiagram
         decimal min_price
         decimal max_price
         char currency
-        varchar status
+        boolean is_current
         varchar source_type
         varchar source_reference
         timestamptz observed_at
         timestamptz verified_at
         uuid verified_by FK
-        timestamptz valid_until
         timestamptz created_at
     }
     PRICE_REPORT {
         uuid price_report_id PK
-        uuid price_assertion_id FK
         uuid menu_item_id FK
+        uuid price_assertion_id FK
         uuid submitted_by FK
         varchar report_type
         decimal observed_price
         varchar comment
         varchar evidence_uri
         varchar moderation_status
-        timestamptz observed_at
+        uuid reviewed_by FK
+        varchar review_note
         timestamptz submitted_at
+        timestamptz reviewed_at
     }
     REVIEW {
         uuid review_id PK
@@ -90,8 +95,7 @@ erDiagram
         timestamptz updated_at
     }
     USER_PREFERENCE {
-        uuid preference_id PK
-        uuid user_id FK, UK
+        uuid user_id PK, FK
         varchar diet_mode
         varchar transport_mode
         jsonb settings
@@ -123,11 +127,8 @@ erDiagram
         uuid submitted_by FK
         uuid restaurant_id FK
         varchar contribution_type
-        varchar proposed_name
-        varchar proposed_address
-        decimal proposed_latitude
-        decimal proposed_longitude
-        varchar payload
+        jsonb payload
+        varchar evidence_uri
         varchar status
         uuid reviewed_by FK
         varchar review_note
@@ -148,21 +149,23 @@ erDiagram
     APP_USER ||--o| USER_PREFERENCE : has
     APP_USER ||--o{ REVIEW : writes
     APP_USER ||--o{ PRICE_REPORT : submits
+    APP_USER |o--o{ PRICE_REPORT : reviews
     APP_USER ||--o{ CONTRIBUTION : submits
-    APP_USER ||--o{ CONTRIBUTION : reviews
-    APP_USER ||--o{ PRICE_ASSERTION : verifies
+    APP_USER |o--o{ CONTRIBUTION : reviews
+    APP_USER |o--o{ PRICE_ASSERTION : verifies
+    APP_USER |o--o{ RESTAURANT : verifies
     APP_USER ||--o{ AUDIT_EVENT : performs
 
     RESTAURANT ||--|{ RESTAURANT_LOCATION : located_at
     RESTAURANT ||--o{ MENU_ITEM : offers
     RESTAURANT ||--o{ REVIEW : receives
-    RESTAURANT ||--o{ CONTRIBUTION : concerns
+    RESTAURANT |o--o{ CONTRIBUTION : concerns
     RESTAURANT ||--o{ FAVORITE_RESTAURANT : favorited_by
     RESTAURANT ||--o{ RESTAURANT_CUISINE : categorized_as
     CUISINE ||--o{ RESTAURANT_CUISINE : classifies
 
     MENU_ITEM ||--o{ PRICE_ASSERTION : has_price_history
-    PRICE_ASSERTION ||--o{ PRICE_REPORT : receives_reports
+    PRICE_ASSERTION |o--o{ PRICE_REPORT : receives_reports
     MENU_ITEM ||--o{ PRICE_REPORT : concerns
 
     APP_USER ||--o{ USER_RESTRICTION : selects
@@ -170,8 +173,6 @@ erDiagram
     APP_USER ||--o{ USER_FAVORITE_DISH : prefers
     DISH_CATEGORY ||--o{ USER_FAVORITE_DISH : preferred_by
     APP_USER ||--o{ FAVORITE_RESTAURANT : saves
-
-    APP_USER ||--o{ AUDIT_EVENT : actor
 ```
 
 ## 1. Ý nghĩa và ràng buộc quan trọng
