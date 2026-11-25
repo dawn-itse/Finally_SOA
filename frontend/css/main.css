@@ -122,11 +122,6 @@ html, body {
   border-color: var(--border-chip);
 }
 
-.btn-lang {
-  padding: 0 9px;
-  font-size: 1rem;
-}
-
 /* Main Scrollable Content Area */
 .app-main {
   flex: 1;

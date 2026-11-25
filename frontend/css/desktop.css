@@ -589,6 +589,53 @@
     transition: transform 0.22s ease, opacity 0.22s ease;
   }
 
+  .modal-sheet.is-personalize-sheet {
+    width: min(560px, calc(100vw - 48px));
+    padding: 0;
+    background: #171210;
+    border-color: #2F2520;
+  }
+
+  .personalize-panel-footer {
+    background: #171210;
+    border-top-color: #2C231E;
+  }
+
+  .p-pill-chip {
+    background: #231C19;
+    border-color: #342A25;
+    color: var(--text-primary);
+  }
+
+  .p-pill-chip:hover {
+    background: #2D231F;
+    border-color: #453730;
+  }
+
+  .p-pill-chip.selected {
+    background: #3F2416;
+    border-color: #D47A42;
+    color: #F6A867;
+  }
+
+  .btn-personalize-reset {
+    background: #231C19;
+    border-color: #342A25;
+    color: var(--text-primary);
+  }
+
+  .btn-personalize-reset:hover {
+    background: #2E2521;
+  }
+
+  .btn-personalize-save {
+    background: #C84B17;
+  }
+
+  .btn-personalize-save:hover {
+    background: #D9541E;
+  }
+
   .modal-overlay.open .modal-sheet {
     transform: none;
     opacity: 1;
@@ -607,15 +654,9 @@
     background: var(--bg-chip-hover);
   }
 
-  .menu-item-row,
   .feedback-card-item {
     background: var(--bg-surface-2);
     border-color: var(--border-light);
-  }
-
-  .menu-item-row.within-budget {
-    background: #15281C;
-    border-color: #1F4D30;
   }
 
   .feedback-form-box {
@@ -729,6 +770,32 @@
     padding: 20px 24px 32px;
     border-left: 1px solid var(--border-light);
     background: #181312;
+  }
+
+  .badge-suggest {
+    background: #3D2516;
+    color: var(--accent-text);
+  }
+
+  .chosen-before-tag {
+    color: var(--accent-text);
+  }
+
+  .btn-cta-call,
+  .btn-cta-call-phone {
+    background: #132A1F;
+    border-color: #1D4030;
+    color: #4ADE80;
+  }
+
+  .btn-cta-call:hover,
+  .btn-cta-call-phone:hover {
+    background: #183627;
+  }
+
+  .explorer-review-quote {
+    border-left-color: #9A5B2C;
+    color: var(--text-primary);
   }
 
   /* ---------- 12. SOA Trace drawer ---------- */
