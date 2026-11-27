@@ -1,96 +1,38 @@
-/**
- * Zero-dependency Node.js Server for previewing "Mua Gì Đây" Frontend
- * Run: node backend/server.js -> Open http://localhost:3000
- */
-
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
+require('./config');
+const express = require('express');
+const path = require('node:path');
 const { handleGoong } = require('./routes/geo');
-const { handleWeather, WEATHER_ROUTE } = require('./services/context-weather-service/src');
-const { handleNlp, NLP_ROUTE } = require('./services/nlp-conversation-service/src');
-const { AUTH_PREFIX, createAuthHandler } = require('./services/auth-service/src');
+const { createWeatherRouter } = require('./services/context-weather-service/src');
+const { createNlpRouter } = require('./services/nlp-conversation-service/src');
+const { createAuthRouter } = require('./services/auth-service/src');
+const { fail, apiErrors } = require('./lib/http');
 
-const envFile = path.join(__dirname, '.env');
-if (fs.existsSync(envFile)) process.loadEnvFile(envFile);
-const handleAuth = createAuthHandler();
+const app = express();
+app.disable('x-powered-by');
+app.use(createAuthRouter());
+app.use(createNlpRouter());
+app.use(createWeatherRouter());
+app.use('/api/geo', (req, res) => handleGoong(req, res, new URL(req.originalUrl, 'http://localhost')));
+app.use('/api', (_req, res) => fail(res, 404, 'Không tìm thấy API.'));
 
-const DEFAULT_PORT = Number(process.env.PORT) || 3000;
-const FRONTEND_DIR = path.join(__dirname, '..', 'frontend');
-const DISH_TEXT_MODULE = path.join(__dirname, '..', 'shared', 'dishText.mjs');
-
-const MIME_TYPES = {
-  '.html': 'text/html; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.js': 'application/javascript; charset=utf-8',
-  '.mjs': 'application/javascript; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.ico': 'image/x-icon'
-};
-
-function createAppServer() {
-  return http.createServer((req, res) => {
-    const requestUrl = new URL(req.url, 'http://localhost');
-    if (requestUrl.pathname.startsWith(AUTH_PREFIX)) {
-      void handleAuth(req, res, requestUrl);
-      return;
-    }
-    if (requestUrl.pathname === NLP_ROUTE) {
-      void handleNlp(req, res, requestUrl);
-      return;
-    }
-    if (requestUrl.pathname === WEATHER_ROUTE) {
-      void handleWeather(req, res, requestUrl);
-      return;
-    }
-    if (requestUrl.pathname.startsWith('/api/geo/')) {
-      void handleGoong(req, res, requestUrl);
-      return;
-    }
-    const safePath = requestUrl.pathname;
-    const relativePath = safePath === '/' ? 'index.html' : safePath.replace(/^\/+/, '');
-    const filePath = safePath === '/shared/dishText.mjs' ? DISH_TEXT_MODULE : path.join(FRONTEND_DIR, relativePath);
-
-    if (filePath !== DISH_TEXT_MODULE && !filePath.startsWith(FRONTEND_DIR + path.sep)) {
-      res.writeHead(403);
-      res.end('Forbidden');
-      return;
-    }
-
-    fs.readFile(filePath, (err, content) => {
-      if (err) {
-        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-        res.end('404 Not Found');
-        return;
-      }
-      const ext = path.extname(filePath).toLowerCase();
-      res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' });
-      res.end(content);
-    });
-  });
-}
+app.get('/shared/dishText.mjs', (_req, res) => res.sendFile(path.join(__dirname, '..', 'shared', 'dishText.mjs')));
+app.use(express.static(path.join(__dirname, '..', 'frontend'), { dotfiles: 'ignore' }));
+app.use((_req, res) => res.status(404).type('text').send('404 Not Found'));
+app.use(apiErrors);
 
 function startServer(port) {
-  const server = createAppServer();
-
-  server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      console.log(`⚠️ Cổng ${port} đang được sử dụng, tự động chuyển sang cổng ${port + 1}...`);
-      startServer(port + 1);
-    } else {
-      console.error('Server error:', err);
+  app.listen(port, 'localhost', (error) => {
+    if (error?.code === 'EADDRINUSE' && port < 65535) {
+      console.log(`Cổng ${port} đang được sử dụng, chuyển sang cổng ${port + 1}.`);
+      return startServer(port + 1);
     }
-  });
-
-  server.listen(port, 'localhost', () => {
-    console.log(`=====================================================`);
-    console.log(`🍜 Mua Gi Day Preview running at:`);
-    console.log(`👉 http://localhost:${port}`);
-    console.log(`=====================================================`);
+    if (error) {
+      console.error('Preview:', error.code || error.name);
+      process.exitCode = 1;
+      return;
+    }
+    console.log(`Mua Gì Đây đang chạy tại http://localhost:${port}`);
   });
 }
 
-startServer(DEFAULT_PORT);
+startServer(Number(process.env.PORT) || 3000);

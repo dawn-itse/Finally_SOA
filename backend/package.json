@@ -1,0 +1,17 @@
+{
+  "name": "muagiday-backend",
+  "private": true,
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node server.js",
+    "db:init": "node database/init.js",
+    "weather": "node services/context-weather-service/src/index.js",
+    "nlp": "node services/nlp-conversation-service/src/index.js",
+    "auth": "node services/auth-service/src/index.js",
+    "auth:create-admin": "node services/auth-service/src/index.js --create-admin"
+  },
+  "dependencies": {
+    "express": "^5.3.0",
+    "mysql2": "^3.24.6"
+  }
+}

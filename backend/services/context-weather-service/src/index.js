@@ -1,15 +1,15 @@
-const { existsSync } = require('node:fs');
-const { createServer } = require('node:http');
-const path = require('node:path');
+const express = require('express');
+const { pool } = require('../../../database/pool');
+const { reply, fail, methodNotAllowed, listenService } = require('../../../lib/http');
 
 const WEATHER_ROUTE = '/api/v1/context/morning-greeting';
 const METEOSOURCE_URL = 'https://www.meteosource.com/api/v1/free/point';
 const CACHE_TTL = 10 * 60 * 1000;
-const MAX_CACHED_POINTS = 128;
-const weatherByPoint = new Map();
+const MAX_PENDING_POINTS = 128;
 
 function parseCoordinates(query) {
-  const parts = (query ?? '').split(',').map((part) => part.trim());
+  if (typeof query !== 'string') return null;
+  const parts = query.split(',').map((part) => part.trim());
   if (parts.length !== 2 || parts.some((part) => !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(part))) return null;
   const [lat, lon] = parts.map(Number);
   if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
@@ -67,60 +67,62 @@ async function fetchWeather({ lat, lon }, key) {
   return { status: 200, data: suggestMeal(current, new Date()) };
 }
 
-async function getWeather(point, key) {
-  const pointKey = `${point.lat},${point.lon}`;
-  const cached = weatherByPoint.get(pointKey);
-  if (cached && cached.expiresAt > Date.now()) return cached.result;
-  weatherByPoint.delete(pointKey);
-  if (weatherByPoint.size >= MAX_CACHED_POINTS) {
-    weatherByPoint.delete(weatherByPoint.keys().next().value);
+function createWeatherRouter(db = pool) {
+  const router = express.Router();
+  const pendingByPoint = new Map();
+  let nextCleanup = 0;
+
+  async function getWeather(point) {
+    const { lat, lon } = point;
+    const [rows] = await db.execute(
+      'SELECT payload FROM weather_cache WHERE latitude = ? AND longitude = ? AND expires_at > UTC_TIMESTAMP(3)',
+      [lat, lon]
+    );
+    if (rows[0]) return { status: 200, data: rows[0].payload };
+
+    const key = process.env.METEOSOURCE_API_KEY?.trim();
+    if (!key) return { status: 503, error: 'Chưa cấu hình Meteosource.' };
+
+    const result = await fetchWeather(point, key).catch(() => ({ status: 502 }));
+    if (result.status !== 200) return result;
+    const payload = JSON.stringify(result.data);
+    const expiresAt = new Date(Date.parse(result.data.fetchedAt) + CACHE_TTL);
+    await db.execute(
+      `INSERT INTO weather_cache (latitude, longitude, payload, expires_at) VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE payload = ?, expires_at = ?`,
+      [lat, lon, payload, expiresAt, payload, expiresAt]
+    );
+    if (Date.now() >= nextCleanup) {
+      nextCleanup = Date.now() + CACHE_TTL;
+      void db.execute('DELETE FROM weather_cache WHERE expires_at <= UTC_TIMESTAMP(3) LIMIT 500')
+        .catch((error) => console.error('Weather cleanup:', error.code || error.name));
+    }
+    return result;
   }
 
-  const entry = {
-    expiresAt: Date.now() + CACHE_TTL,
-    result: fetchWeather(point, key).catch(() => ({ status: 502 }))
-  };
-  weatherByPoint.set(pointKey, entry);
-  const result = await entry.result;
-  if (result.status !== 200 && weatherByPoint.get(pointKey) === entry) weatherByPoint.delete(pointKey);
-  return result;
-}
+  router.head(WEATHER_ROUTE, methodNotAllowed('GET'));
+  router.get(WEATHER_ROUTE, async (req, res) => {
+    const coordinates = parseCoordinates(req.query.q);
+    if (!coordinates) return fail(res, 400, 'Cần tọa độ hợp lệ theo dạng vĩ độ,kinh độ.');
 
-function send(res, status, body, headers = {}) {
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-    ...headers
+    const pointKey = `${coordinates.lat},${coordinates.lon}`;
+    let pending = pendingByPoint.get(pointKey);
+    if (!pending) {
+      if (pendingByPoint.size >= MAX_PENDING_POINTS) return fail(res, 503, 'Dịch vụ thời tiết đang bận.');
+      pending = getWeather(coordinates).finally(() => pendingByPoint.delete(pointKey));
+      pendingByPoint.set(pointKey, pending);
+    }
+    const { status, data, error } = await pending;
+    if (status !== 200) return fail(res, status, error || 'Thời tiết hiện không khả dụng.');
+    return reply(res, 200, { success: true, source: 'meteosource', data });
   });
-  res.end(JSON.stringify(body));
-}
+  router.all(WEATHER_ROUTE, methodNotAllowed('GET'));
 
-async function handleWeather(req, res, url) {
-  if (url.pathname !== WEATHER_ROUTE) {
-    return send(res, 404, { success: false, error: 'Không tìm thấy API thời tiết.' });
-  }
-  if (req.method !== 'GET') {
-    return send(res, 405, { success: false, error: 'Chỉ hỗ trợ GET.' }, { Allow: 'GET' });
-  }
-  const coordinates = parseCoordinates(url.searchParams.get('q'));
-  if (!coordinates) return send(res, 400, { success: false, error: 'Cần tọa độ hợp lệ theo dạng vĩ độ,kinh độ.' });
-
-  const key = process.env.METEOSOURCE_API_KEY?.trim();
-  if (!key) return send(res, 503, { success: false, error: 'Chưa cấu hình Meteosource.' });
-  const { status, data } = await getWeather(coordinates, key);
-  if (status !== 200) return send(res, status, { success: false, error: 'Thời tiết hiện không khả dụng.' });
-  return send(res, 200, { success: true, source: 'meteosource', data });
+  return router;
 }
 
 if (require.main === module) {
-  const envFile = path.join(__dirname, '..', '..', '..', '.env');
-  if (existsSync(envFile)) process.loadEnvFile(envFile);
-  const port = Number(process.env.WEATHER_PORT) || 4001;
-  createServer((req, res) => {
-    void handleWeather(req, res, new URL(req.url, 'http://localhost'));
-  }).listen(port, 'localhost', () => {
-    console.log(`Context & Weather Service đang chạy tại http://localhost:${port}`);
-  });
+  listenService(createWeatherRouter(), Number(process.env.WEATHER_PORT) || 4001, 'Context & Weather Service');
 }
 
-module.exports = { handleWeather, WEATHER_ROUTE };
+module.exports = { createWeatherRouter };

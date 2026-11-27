@@ -337,6 +337,6 @@ Mỗi bản ghi `PRICE_ASSERTION` lưu `min_price`, `max_price`, `currency`, `is
 ## 9. Ngoài phạm vi và ghi chú triển khai
 
 - Bản preview dùng proxy Goong để tra cứu địa điểm, địa chỉ và lộ trình. Catalog mẫu, gợi ý đã lưu và hàng chờ kiểm duyệt dùng `localStorage`. MySQL là kho dùng chung theo thiết kế backend.
-- Auth Service xử lý đăng ký, đăng nhập và kiểm tra phiên ở server với SQLite. Gateway và phân quyền trên các API nghiệp vụ thuộc thiết kế tích hợp SOA. [Auth Service](../backend/services/auth-service/README.md) · [Kiến trúc SOA](SOA_ARCHITECTURE.md)
+- Auth Service xử lý đăng ký, đăng nhập và kiểm tra phiên trên Express và MySQL. Gateway và phân quyền trên các API nghiệp vụ thuộc thiết kế tích hợp SOA. [Auth Service](../backend/services/auth-service/README.md) · [Kiến trúc SOA](SOA_ARCHITECTURE.md)
 - Tài khoản Admin được tạo/cấp quyền nội bộ; không có luồng tự đăng ký Admin công khai.
 - Dữ liệu vị trí chính xác và ảnh menu cần có mục đích sử dụng, quyền truy cập và thời hạn lưu phù hợp.

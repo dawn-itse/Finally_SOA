@@ -397,13 +397,13 @@ Phân vùng dưới đây khớp 1-1 với `backend/api-gateway/` (`4000`) và 7
 | Service sở hữu | Port | Dữ liệu logic (19 bảng trong ERD) |
 |---|---|---|
 | `api-gateway` | `4000` | Không sở hữu bảng nghiệp vụ (định tuyến, tổng hợp BFF, Auth Guard kiểm tra token và chuyển tiếp danh tính). |
-| `context-weather-service` | `4001` | Không sở hữu bảng cốt lõi (cache ngữ cảnh thời tiết & gợi ý món theo khung giờ). |
-| `nlp-conversation-service` | `4002` | Không sở hữu bảng cốt lõi (stateless: chuẩn hóa từ khóa món ăn & gợi ý có sẵn). |
+| `context-weather-service` | `4001` | Dùng bảng vận hành `weather_cache` để lưu thời tiết theo tọa độ. |
+| `nlp-conversation-service` | `4002` | Dùng bảng tham chiếu `nlp_dish_alias` để chuẩn hóa cách viết tên món. |
 | `restaurant-search-service` (Catalog & Search) | `4003` | `RESTAURANT`, `RESTAURANT_LOCATION`, `RESTAURANT_DISCOVERY`, `CUISINE`, `RESTAURANT_CUISINE`, `MENU_ITEM`, `PRICE_ASSERTION`. |
 | `routing-geo-service` (Geo & Routing) | `4004` | `SEARCH_AREA` và tích hợp Goong V2. (`RESTAURANT_LOCATION` vẫn thuộc `restaurant-search-service`). |
 | `feedback-review-service` (Feedback & Moderation) | `4005` | `REVIEW`, `PRICE_REPORT`, `CONTRIBUTION`, `AUDIT_EVENT` (hàng đợi kiểm duyệt và nhật ký nghiệp vụ). |
 | `user-preference-service` (Preference) | `4006` | `USER_PREFERENCE`, `DIETARY_RESTRICTION`, `USER_RESTRICTION`, `DISH_CATEGORY`, `USER_FAVORITE_DISH`, `FAVORITE_RESTAURANT`. |
-| `auth-service` (Auth & User) | `4007` | `APP_USER` (tài khoản, credential, vai trò `USER`/`ADMIN`, `account_status`). |
+| `auth-service` (Auth & User) | `4007` | `APP_USER` (tài khoản, credential, vai trò `USER`/`ADMIN`, `account_status`) và bảng vận hành `auth_session`. |
 
 Khi Admin duyệt một `CONTRIBUTION` hoặc `PRICE_REPORT`, `feedback-review-service` (`4005`) không ghi thẳng vào bảng của `restaurant-search-service` (`4003`): nó gọi API của `restaurant-search-service` để tạo/cập nhật `RESTAURANT`, `RESTAURANT_LOCATION`, `MENU_ITEM`, `PRICE_ASSERTION` và làm mới `RESTAURANT.verified_at`/`verified_by`, đồng thời ghi `AUDIT_EVENT` (hoặc mỗi service ghi audit phần việc của mình khi tách DB vật lý).
 

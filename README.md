@@ -19,35 +19,42 @@ Finally_SOA/
 │       ├── components/            # Hiển thị và tương tác, gồm ô gợi ý địa chỉ
 │       └── demo/                  # Nghiệp vụ mô phỏng, NLP và dữ liệu mẫu
 ├── backend/                       # Mã chạy trên Node.js
-│   ├── server.js                  # Phục vụ frontend và chuyển tiếp yêu cầu vị trí
+│   ├── server.js                  # Express phục vụ frontend và gắn các router API
+│   ├── database/                  # Kết nối và lược đồ MySQL
+│   ├── compose.yaml               # MySQL 8.4 để chạy local
 │   ├── routes/geo.js              # Xử lý /api/geo/* và gọi Goong REST API
 │   ├── .env.example               # Mẫu cấu hình riêng của backend
 │   ├── api-gateway/               # Khung API Gateway
-│   └── services/                  # Khung 7 service theo bảng phân công
+│   └── services/                  # Weather, NLP, Auth và các service theo bảng phân công
 ├── shared/                        # Quy tắc chuẩn hóa tên món dùng chung
 └── docs/                          # Kiến trúc SOA, ERD, use case và phân công
 ```
 
-Frontend gọi API vị trí qua cùng địa chỉ với trang đang mở. Bản demo lưu tài khoản, dữ liệu quán và kết quả kiểm duyệt trong `localStorage`. Mỗi thư mục API Gateway và service có sẵn `src/` và README ghi người phụ trách, cổng dự kiến và nhiệm vụ. Xem [bảng phân công](docs/TEAM_ASSIGNMENT.md) và [thiết kế SOA và MySQL](docs/SOA_ARCHITECTURE.md).
+Frontend gọi các API qua cùng địa chỉ với trang đang mở. Weather, NLP và Auth chạy bằng Node.js + Express và dùng MySQL. Catalog mẫu và kiểm duyệt của bản preview dùng `localStorage`. [Bảng phân công](docs/TEAM_ASSIGNMENT.md) · [Kiến trúc SOA](docs/SOA_ARCHITECTURE.md)
 
 ## Chạy dự án
 
-Dùng Node.js 22.13 trở lên. Từ thư mục gốc dự án, chạy:
+Dùng Node.js 22 trở lên. Từ thư mục gốc dự án, cài thư viện và tạo file cấu hình nếu chưa có.
 
 ```powershell
-node backend/server.js
+npm --prefix backend ci
+if (-not (Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env }
 ```
+
+Nếu dùng Docker Desktop, điền `MYSQL_PASSWORD` và `MYSQL_ROOT_PASSWORD` vào `backend/.env`, rồi chạy:
+
+```powershell
+docker compose --env-file backend/.env -f backend/compose.yaml up -d --wait
+npm --prefix backend run db:init
+npm --prefix backend start
+```
+
+Nếu đã có MySQL 8.x, tạo database và cấp quyền cho tài khoản ứng dụng, cấu hình `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`, rồi chạy hai lệnh npm cuối ở trên.
 
 - Trang người dùng: http://localhost:3000/
 - Trang quản trị: http://localhost:3000/admin.html
 
 Nếu cổng 3000 đang được dùng, mở địa chỉ được in trong terminal.
-
-Để bật gợi ý địa chỉ và chỉ đường qua Goong, tạo file cấu hình bằng PowerShell:
-
-```powershell
-if (-not (Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env }
-```
 
 Điền Goong REST API key vào `GOONG_API_KEY` trong `backend/.env`, rồi khởi động lại server.
 
