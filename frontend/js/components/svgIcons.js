@@ -113,6 +113,49 @@ export const FoodIllustrations = {
     </svg>
   `,
 
+  // Hotpot & Grill (Lẩu, nướng)
+  hotpot: (size = 28) => `
+    <svg width="${size}" height="${size}" viewBox="0 0 80 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="40" cy="58" rx="28" ry="5" fill="#2A201B" fill-opacity="0.35"/>
+      <path d="M8 34H16M64 34H72" stroke="#524640" stroke-width="4" stroke-linecap="round"/>
+      <ellipse cx="40" cy="32" rx="26" ry="10" fill="#3B322E" stroke="#574B45" stroke-width="2"/>
+      <ellipse cx="40" cy="32" rx="22" ry="7.5" fill="#C84019"/>
+      <circle cx="32" cy="31" r="3" fill="#FBBF24"/>
+      <circle cx="45" cy="33" r="3.2" fill="#FDE68A"/>
+      <circle cx="39" cy="29" r="2.2" fill="#4ADE80"/>
+      <path d="M14 32C16 49 26 55 40 55C54 55 64 49 66 32H14Z" fill="#2D2623"/>
+    </svg>
+  `,
+
+  // Burger / Fast Food (Gà rán, pizza)
+  burger: (size = 28) => `
+    <svg width="${size}" height="${size}" viewBox="0 0 80 75" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M16 34C16 20 27 14 40 14C53 14 64 20 64 34H16Z" fill="#D97706"/>
+      <circle cx="32" cy="23" r="1.5" fill="#FEF3C7"/>
+      <circle cx="42" cy="20" r="1.5" fill="#FEF3C7"/>
+      <circle cx="50" cy="24" r="1.5" fill="#FEF3C7"/>
+      <path d="M14 36C22 33 28 39 36 36C44 33 50 39 58 36C62 34 65 36 66 36" stroke="#4ADE80" stroke-width="4" stroke-linecap="round"/>
+      <rect x="15" y="39" width="50" height="8" rx="4" fill="#78350F"/>
+      <path d="M16 47H64L52 52L28 50L16 47Z" fill="#FBBF24"/>
+      <rect x="17" y="49" width="46" height="10" rx="5" fill="#D97706"/>
+    </svg>
+  `,
+
+  // Fresh Juice & Smoothie (Nước ép, sinh tố)
+  juiceGlass: (size = 28) => `
+    <svg width="${size}" height="${size}" viewBox="0 0 80 95" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Green straw -->
+      <path d="M44 28L52 10" stroke="#22C55E" stroke-width="4.5" stroke-linecap="round"/>
+      <!-- Citrus slice on rim -->
+      <circle cx="29" cy="27" r="8" fill="#FACC15" stroke="#FEF08A" stroke-width="2"/>
+      <!-- Glass body -->
+      <path d="M23 28H57L53 80C52.7 83 50.5 85 47.5 85H32.5C29.5 85 27.3 83 27 80L23 28Z" fill="#F59E0B"/>
+      <path d="M24 34H56L54 55H26L24 34Z" fill="#FB923C"/>
+      <!-- Mint leaf -->
+      <ellipse cx="42" cy="27" rx="5" ry="3" transform="rotate(-20 42 27)" fill="#16A34A"/>
+    </svg>
+  `,
+
   // Mini Route Map SVG (Matches Screenshots 7 & 8)
   miniRouteMap: () => `
     <svg class="minimap-svg-bg" viewBox="0 0 400 140" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">

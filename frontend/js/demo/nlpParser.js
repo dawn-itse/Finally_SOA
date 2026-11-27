@@ -90,9 +90,29 @@ export function parseUserUtterance(rawText, currentState) {
   return result;
 }
 
+export function normalizeDishText(value) {
+  return String(value ?? '').toLowerCase().normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/đ/g, 'd')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+}
+
+// Budget and radius belong to the controls in the dock.
+export function readDishName(rawText) {
+  const name = String(rawText ?? '').normalize('NFC').trim().replace(/\s+/g, ' ');
+  const normalized = normalizeDishText(name);
+  const hasFilter = /\d+(?:[.,]\d+)?\s*(?:km|k|nghìn|ngàn|nghin|ngan|cành|canh|vnd|vnđ|đồng|đong|đ)(?=$|[^\p{L}])/iu.test(name)
+    || /\b\d{4,}\b|\b(?:duoi|toi da|trong ban kinh|di) \d|\b\d+ nguoi\b|\b(?:gan hon|re hon|quanh day)\b/u.test(normalized)
+    || /\b\d{1,3}(?:[.,]\d{3})+(?!\d)/u.test(name);
+  if (!/\p{L}/u.test(normalized) || name.length < 2 || name.length > 100 || hasFilter) return null;
+  return capitalizeFirst(name);
+}
+
 export function formatK(amount) {
-  if (!amount) return 'Số tiền';
-  return `${Math.round(amount / 1000)}k`;
+  if (amount === null || amount === undefined || !Number.isFinite(Number(amount))) return 'Số tiền';
+  if (Number(amount) === 0) return '0đ';
+  return `${(Number(amount) / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 3 })}k`;
 }
 
 function capitalizeFirst(str) {

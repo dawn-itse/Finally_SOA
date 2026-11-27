@@ -122,11 +122,6 @@ html, body {
   border-color: var(--border-chip);
 }
 
-.btn-lang {
-  padding: 0 9px;
-  font-size: 1rem;
-}
-
 /* Main Scrollable Content Area */
 .app-main {
   flex: 1;
@@ -287,7 +282,7 @@ html, body {
   transition: all 0.16s ease;
 }
 
-.filter-chip:hover, .filter-chip.active {
+.filter-chip:hover, .filter-chip:focus-within, .filter-chip.active {
   background: var(--bg-chip-hover);
   border-color: var(--primary-border);
 }
@@ -295,6 +290,30 @@ html, body {
 .filter-chip svg.chip-icon {
   color: var(--primary);
   flex-shrink: 0;
+}
+
+.filter-select {
+  flex: 0 0 auto;
+}
+
+.filter-select select {
+  max-width: 12rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.filter-select select option {
+  background: var(--bg-chip);
+  color: var(--text-primary);
+}
+
+.dish-input-notice {
+  margin: 0 0 5px;
+  font-size: 0.78rem;
+  color: var(--primary);
 }
 
 .btn-submit-search {
