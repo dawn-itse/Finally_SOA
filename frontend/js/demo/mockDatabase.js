@@ -71,9 +71,10 @@ export const WEATHER_CONTEXTS = [
 ];
 
 /**
- * 17 Normalized ERD Tables
+ * Preview ERD tables
  */
 export const ERD_DATABASE = {
+  RESTAURANT_DISCOVERY: [],
   SEARCH_AREA,
   // 1. APP_USER
   APP_USER: [

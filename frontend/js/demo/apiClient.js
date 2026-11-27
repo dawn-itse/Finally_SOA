@@ -1,6 +1,6 @@
 /**
  * Browser demo services backed by localStorage
- * Strictly enforces all 17 normalized ERD tables and business constraints:
+ * Implements the preview's ERD tables and business constraints:
  * - APP_USER.role (USER | ADMIN) controls moderation permissions
  * - RESTAURANT splits visibility_status (PENDING | PUBLISHED | REJECTED | SUSPENDED | CLOSED)
  *   from verification: no is_verified column, "Đã xác minh" = verified_at IS NOT NULL (verified_at and
@@ -31,7 +31,6 @@ export const DEFAULT_RADIUS_KM = 2;
 
 const serviceLogs = [];
 let logSubscriber = null;
-const WEATHER_SERVICE_URL = 'http://localhost:4001';
 const GUEST_STORAGE_KEY = 'muagiday_guest_preferences_v1';
 const SESSION_STORAGE_KEY = 'muagiday_session_user_v1';
 const ADMIN_SESSION_STORAGE_KEY = 'muagiday_admin_session_v1';
@@ -41,6 +40,7 @@ const PERSISTED_TABLES = [
   'SEARCH_AREA',
   'RESTAURANT',
   'RESTAURANT_LOCATION',
+  'RESTAURANT_DISCOVERY',
   'MENU_ITEM',
   'PRICE_ASSERTION',
   'PRICE_REPORT',
@@ -610,6 +610,48 @@ function computeDistanceKm(lat1, lon1, lat2, lon2) {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
+function findGoongLocation(placeId) {
+  if (!placeId) return undefined;
+  return ERD_DATABASE.RESTAURANT_LOCATION.find((row) => row.provider === 'GOONG' && row.provider_place_id === placeId);
+}
+
+function canSuggestRestaurant(restaurant) {
+  return ['PENDING', 'PUBLISHED'].includes(restaurant?.visibility_status);
+}
+
+function readDiscoverySuggestions(keyword, anchor, radiusKm) {
+  const nearestByRestaurant = new Map();
+  if (!anchor || !keyword) return [];
+
+  for (const discovery of ERD_DATABASE.RESTAURANT_DISCOVERY) {
+    if (discovery.dish_keyword !== keyword) continue;
+    const location = ERD_DATABASE.RESTAURANT_LOCATION.find((row) => row.location_id === discovery.location_id);
+    if (!location || location.provider !== 'GOONG') continue;
+    const restaurant = ERD_DATABASE.RESTAURANT.find((row) => row.restaurant_id === location.restaurant_id);
+    if (!canSuggestRestaurant(restaurant)) continue;
+    const distanceKm = computeDistanceKm(anchor.latitude, anchor.longitude, location.latitude, location.longitude);
+    if (distanceKm === null || distanceKm > radiusKm) continue;
+    if (distanceKm >= (nearestByRestaurant.get(restaurant.restaurant_id)?.distanceKm ?? Infinity)) continue;
+    nearestByRestaurant.set(restaurant.restaurant_id, {
+      id: restaurant.restaurant_id,
+      name: restaurant.name,
+      address: location.address_text,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      distanceKm
+    });
+  }
+  return [...nearestByRestaurant.values()].sort((a, b) => a.distanceKm - b.distanceKm);
+}
+
+function looksLikeFoodPlace(place, name, keyword) {
+  const types = Array.isArray(place.types) ? place.types : [];
+  if (types.some((type) => /^(restaurant|food|cafe|bakery|meal_takeaway|meal_delivery)$/.test(type))) return true;
+  if (types.some((type) => /^(house_number|street|route|administrative_area(?:_level_\d+)?)$/.test(type))) return false;
+  return name !== normalizeDishText(place.address_text) &&
+    (` ${name} `.includes(` ${keyword} `) || /\b(quan|nha hang|tiem an)\b/.test(name));
+}
+
 /**
  * Hydrate a RESTAURANT row with its related ERD entities into a view-model
  */
@@ -884,9 +926,8 @@ export const SOAApiClient = {
    */
   async getWeatherForCoordinates({ latitude, longitude }) {
     try {
-      const url = new URL(`${WEATHER_SERVICE_URL}/api/v1/context/morning-greeting`);
-      url.searchParams.set('q', `${latitude},${longitude}`);
-      const response = await fetch(url, { signal: AbortSignal.timeout(7000) });
+      const params = new URLSearchParams({ q: `${latitude},${longitude}` });
+      const response = await fetch(`/api/v1/context/morning-greeting?${params}`, { signal: AbortSignal.timeout(7000) });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       const payload = await response.json();
@@ -895,9 +936,9 @@ export const SOAApiClient = {
       emitServiceTrace(
         'context-weather-service',
         'GET /api/v1/context/morning-greeting?q=device-coordinates',
-        `Thời tiết tại vị trí hiện tại: ${payload.data.temp}°C (${payload.data.condition})`
+        `Thời tiết tại điểm tìm: ${payload.data.temp}°C (${payload.data.condition})`
       );
-      return { ...payload.data, weatherSource: payload.source || 'weatherapi' };
+      return { ...payload.data, weatherSource: payload.source };
     } catch {
       emitServiceTrace(
         'context-weather-service',
@@ -1392,6 +1433,58 @@ export const SOAApiClient = {
     };
   },
 
+  getDiscoverySuggestions({ dish, anchor, radiusKm }) {
+    syncDatabaseFromStorage();
+    return readDiscoverySuggestions(normalizeDishText(dish), anchor, radiusKm);
+  },
+
+  saveDiscoverySuggestions({ dish, anchor, radiusKm }, places) {
+    syncDatabaseFromStorage();
+    const keyword = normalizeDishText(dish);
+    if (!anchor || !keyword) return [];
+
+    let changed = false;
+    for (const place of places) {
+      if (!isGoongLocation(place) || place.provider_place_id.length > 512 || place.address_text.length > 500) continue;
+      const name = typeof place.name === 'string' ? place.name.trim() : '';
+      if (!name || name.length > 200 || !looksLikeFoodPlace(place, normalizeDishText(name), keyword)) continue;
+      let location = findGoongLocation(place.provider_place_id);
+      const point = location ?? place;
+      const distanceKm = computeDistanceKm(anchor.latitude, anchor.longitude, point.latitude, point.longitude);
+      if (distanceKm === null || distanceKm > radiusKm) continue;
+
+      const now = new Date().toISOString();
+      if (location) {
+        const restaurant = ERD_DATABASE.RESTAURANT.find((row) => row.restaurant_id === location.restaurant_id);
+        if (!canSuggestRestaurant(restaurant)) continue;
+      } else {
+        const id = generateUuid();
+        const created = addOrUpdateRestaurantLocation(id, place);
+        if (!created.ok) continue;
+        location = created.data;
+        ERD_DATABASE.RESTAURANT.push({
+          restaurant_id: id,
+          name,
+          visibility_status: 'PENDING',
+          verified_at: null,
+          verified_by: null,
+          source_type: 'GOONG_DISCOVERY',
+          created_at: now,
+          updated_at: now
+        });
+      }
+
+      if (!ERD_DATABASE.RESTAURANT_DISCOVERY.some((row) =>
+        row.location_id === location.location_id && row.dish_keyword === keyword
+      )) {
+        ERD_DATABASE.RESTAURANT_DISCOVERY.push({ location_id: location.location_id, dish_keyword: keyword, discovered_at: now });
+        changed = true;
+      }
+    }
+    if (changed) persistDatabase();
+    return readDiscoverySuggestions(keyword, anchor, radiusKm);
+  },
+
   /**
    * 4A. Submit Restaurant REVIEW
    * Enforces: rating integer 1..5, unique (restaurant_id, author_user_id), restaurant PUBLISHED
@@ -1872,7 +1965,14 @@ export const SOAApiClient = {
         return fail('Quán mới cần có tên quán và địa chỉ trước khi duyệt hiển thị.');
       }
 
-      const newRestId = generateUuid();
+      const approvedPoint = approvedLocation(finalAddress, payload, editedData);
+      const matchedLocation = approvedPoint.provider === 'GOONG' ? findGoongLocation(approvedPoint.provider_place_id) : null;
+      const matchedRestaurant = matchedLocation && ERD_DATABASE.RESTAURANT.find((row) =>
+        row.restaurant_id === matchedLocation.restaurant_id
+      );
+      const pendingDiscovery = matchedRestaurant?.source_type === 'GOONG_DISCOVERY' &&
+        matchedRestaurant.visibility_status === 'PENDING' ? matchedRestaurant : null;
+      const newRestId = pendingDiscovery?.restaurant_id ?? generateUuid();
       const dishName = (editedData.dishName !== undefined ? editedData.dishName : payload.dishName || '').trim();
       const rawDishPrice = editedData.dishPrice !== undefined ? editedData.dishPrice : payload.dishPrice;
       const hasDishPrice = rawDishPrice !== '' && rawDishPrice !== null && rawDishPrice !== undefined;
@@ -1895,14 +1995,15 @@ export const SOAApiClient = {
         open_until: (editedData.openUntil || payload.openUntil || '21:00').trim(),
         dish_keywords: [(dishName || finalName).toLowerCase(), 'ăn sáng'],
         map_pos: { x: 52, y: 48 },
-        created_at: nowIso,
+        created_at: pendingDiscovery?.created_at ?? nowIso,
         updated_at: nowIso
       };
 
-      const locRes = addOrUpdateRestaurantLocation(newRestId, approvedLocation(finalAddress, payload, editedData));
+      const locRes = addOrUpdateRestaurantLocation(newRestId, approvedPoint, pendingDiscovery ? matchedLocation : null);
       if (!locRes.ok) return fail(locRes.error);
 
-      ERD_DATABASE.RESTAURANT.push(targetRest);
+      if (pendingDiscovery) Object.assign(pendingDiscovery, targetRest);
+      else ERD_DATABASE.RESTAURANT.push(targetRest);
       contrib.restaurant_id = newRestId;
 
       if (dishName) {
@@ -1934,8 +2035,8 @@ export const SOAApiClient = {
         actorUserId: adminUser.user_id,
         entityType: 'RESTAURANT',
         entityId: newRestId,
-        action: 'CREATE_PUBLISHED_RESTAURANT_FROM_CONTRIBUTION',
-        beforeData: null,
+        action: pendingDiscovery ? 'PUBLISH_DISCOVERY_FROM_CONTRIBUTION' : 'CREATE_PUBLISHED_RESTAURANT_FROM_CONTRIBUTION',
+        beforeData: pendingDiscovery ? { visibility_status: 'PENDING' } : null,
         afterData: {
           name: targetRest.name,
           location: { ...locRes.data },

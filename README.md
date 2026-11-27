@@ -24,6 +24,7 @@ Finally_SOA/
 │   ├── .env.example               # Mẫu cấu hình riêng của backend
 │   ├── api-gateway/               # Khung API Gateway
 │   └── services/                  # Khung 7 service theo bảng phân công
+├── shared/                        # Quy tắc chuẩn hóa tên món dùng chung
 └── docs/                          # Kiến trúc SOA, ERD, use case và phân công
 ```
 
@@ -50,6 +51,10 @@ if (-not (Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env
 
 Điền Goong REST API key vào `GOONG_API_KEY` trong `backend/.env`, rồi khởi động lại server.
 
+Để dùng thời tiết trực tiếp, điền `METEOSOURCE_API_KEY` trong cùng file cấu hình. Server preview phục vụ sẵn endpoint thời tiết. [Tài liệu Context & Weather Service](backend/services/context-weather-service/README.md)
+
+Ô tìm món gọi NLP Service qua server preview. [Hướng dẫn chạy riêng và test NLP bằng Postman](backend/services/nlp-conversation-service/README.md)
+
 ### Dùng phần A7
 
 1. Trong “Thêm quán” hoặc “Đóng góp / Sửa quán”, nhập địa chỉ và chọn một gợi ý Goong. App tải tọa độ và địa chỉ chuẩn. Gửi đề xuất để Admin kiểm tra.
@@ -65,4 +70,12 @@ Khi để trống key, phần tìm quán mock vẫn dùng được. Địa chỉ
 3. Bấm **Vị trí hiện tại** để dùng tọa độ thiết bị. Nếu trình duyệt không cấp quyền, ứng dụng quay về điểm mốc đang chọn. Bán kính và tọa độ thiết bị chỉ dùng trong trạng thái trang.
 4. Mở `/admin.html`, đăng nhập bằng tài khoản demo và vào **Khu vực tìm kiếm**. Thêm hoặc sửa khu vực bằng cách chọn một địa chỉ Goong, hoặc nhập địa chỉ cùng vĩ độ và kinh độ. Khu vực đang hoạt động sẽ xuất hiện ở menu tìm kiếm.
 
-Dữ liệu ban đầu gồm ba mốc mẫu ở Hà Nội. Khu vực mới có thể cho kết quả rỗng cho đến khi catalog có quán công khai với món và giá phù hợp. [Thiết kế truy vấn và API](docs/SOA_ARCHITECTURE.md#4-tìm-theo-tên-món-và-điểm-mốc-b1b5)
+Dữ liệu preview gồm ba mốc mẫu ở Hà Nội. Preview ưu tiên catalog mẫu, sau đó kiểm tra gợi ý đã lưu trong `localStorage`. Nếu cả hai đều rỗng, preview tìm thêm qua Goong khi có khóa. Các lần tìm lại trên cùng trình duyệt có thể dùng gợi ý đã lưu.
+
+### Luồng tìm kiếm của backend MySQL
+
+1. Khi người dùng tìm **bún bò** với GPS và bán kính **3 km**, hệ thống truy vấn catalog nội bộ theo món, giá và khoảng cách. Có từ **5 quán** là đủ theo ví dụ. Có **1–4 quán** thì vẫn trả ngay từ database.
+2. Khi có **0 quán**, hệ thống kiểm tra gợi ý địa điểm đã lưu trong bán kính. Nếu cũng không có, gọi Goong để tìm địa điểm.
+3. Lưu quán mới, chi nhánh và từ khóa vào MySQL. Mỗi quán có `restaurant_id` nội bộ. Cặp `(provider, provider_place_id)` dùng để nhận ra chi nhánh đã lưu. Lần sau tìm cùng từ khóa quanh khu vực đó, hệ thống đọc dữ liệu từ MySQL và bỏ qua bước tìm địa điểm Goong.
+
+Địa điểm từ Goong hiển thị với nhãn **Chưa xác nhận món và giá**. Việc chia sẻ dữ liệu đã lưu giữa các trình duyệt và người dùng cần backend MySQL. [Thiết kế truy vấn và API](docs/SOA_ARCHITECTURE.md#4-tìm-theo-tên-món-và-điểm-mốc-b1b5)

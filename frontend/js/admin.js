@@ -423,6 +423,7 @@ function renderRestaurantsSection(restaurants) {
         .map((r) => {
           const vis = r.visibility_status || 'PUBLISHED';
           const isPublished = vis === 'PUBLISHED';
+          const pendingDiscovery = vis === 'PENDING' && r.source_type === 'GOONG_DISCOVERY';
           return `
             <article class="admin-item-card">
               <div class="admin-item-head">
@@ -435,11 +436,13 @@ function renderRestaurantsSection(restaurants) {
                     ${!isPublished ? `<span class="status-pill suspended">${escapeHtml(vis)}</span>` : ''}
                   </div>
                   <div class="admin-item-meta">
-                    ${escapeHtml(r.address)} · SĐT: ${escapeHtml(r.phone || 'Chưa có')} · Mở tới ${escapeHtml(r.openUntil)}
+                    ${escapeHtml(r.address)} · ${pendingDiscovery
+                      ? 'Nguồn Goong · Chưa xác nhận món và giá'
+                      : `SĐT: ${escapeHtml(r.phone || 'Chưa có')} · Mở tới ${escapeHtml(r.openUntil)}`}
                     ${r.verifiedAt ? ` · Xác minh lúc ${formatDateTime(r.verifiedAt)}` : ''}
                   </div>
                 </div>
-                <div>
+                ${pendingDiscovery ? '' : `<div>
                   <button
                     type="button"
                     class="${r.isVerified ? 'btn-admin-secondary' : 'btn-admin-verify'}"
@@ -449,7 +452,7 @@ function renderRestaurantsSection(restaurants) {
                   >
                     ${r.isVerified ? 'Đổi sang Chưa xác minh' : 'Đánh dấu Đã xác minh'}
                   </button>
-                </div>
+                </div>`}
               </div>
 
               <div class="admin-menu-chips">

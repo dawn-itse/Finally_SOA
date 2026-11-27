@@ -7,17 +7,21 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { handleGoong } = require('./routes/geo');
+const { handleWeather, WEATHER_ROUTE } = require('./services/context-weather-service/src');
+const { handleNlp, NLP_ROUTE } = require('./services/nlp-conversation-service/src');
 
 const envFile = path.join(__dirname, '.env');
 if (fs.existsSync(envFile)) process.loadEnvFile(envFile);
 
 const DEFAULT_PORT = Number(process.env.PORT) || 3000;
 const FRONTEND_DIR = path.join(__dirname, '..', 'frontend');
+const DISH_TEXT_MODULE = path.join(__dirname, '..', 'shared', 'dishText.mjs');
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
+  '.mjs': 'application/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
@@ -28,15 +32,23 @@ const MIME_TYPES = {
 function createAppServer() {
   return http.createServer((req, res) => {
     const requestUrl = new URL(req.url, 'http://localhost');
+    if (requestUrl.pathname === NLP_ROUTE) {
+      void handleNlp(req, res, requestUrl);
+      return;
+    }
+    if (requestUrl.pathname === WEATHER_ROUTE) {
+      void handleWeather(req, res, requestUrl);
+      return;
+    }
     if (requestUrl.pathname.startsWith('/api/geo/')) {
       void handleGoong(req, res, requestUrl);
       return;
     }
     const safePath = requestUrl.pathname;
     const relativePath = safePath === '/' ? 'index.html' : safePath.replace(/^\/+/, '');
-    const filePath = path.join(FRONTEND_DIR, relativePath);
+    const filePath = safePath === '/shared/dishText.mjs' ? DISH_TEXT_MODULE : path.join(FRONTEND_DIR, relativePath);
 
-    if (!filePath.startsWith(FRONTEND_DIR + path.sep)) {
+    if (filePath !== DISH_TEXT_MODULE && !filePath.startsWith(FRONTEND_DIR + path.sep)) {
       res.writeHead(403);
       res.end('Forbidden');
       return;

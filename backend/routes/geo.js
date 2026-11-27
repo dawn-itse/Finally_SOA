@@ -32,6 +32,8 @@ function placeDetails(result, requestedId) {
   return {
     provider: 'GOONG',
     provider_place_id: cleanText(result.place_id) || requestedId,
+    name: cleanText(result.name),
+    types: Array.isArray(result.types) ? result.types.map(cleanText).filter(Boolean) : [],
     address_text: address,
     latitude,
     longitude,
@@ -58,6 +60,13 @@ async function handleGoong(req, res, url) {
       if (query.has('location')) {
         params.location = coordinates(query.get('location'));
         if (!params.location) return send(res, 400, { error: 'Tọa độ tìm kiếm không hợp lệ.' });
+      }
+      if (query.has('radius')) {
+        const radius = Number(query.get('radius'));
+        if (!params.location || !Number.isFinite(radius) || radius <= 0 || radius > 50) {
+          return send(res, 400, { error: 'Cần tọa độ và bán kính hợp lệ trong khoảng trên 0 đến 50 km.' });
+        }
+        params.radius = String(radius);
       }
       normalize = (payload) => Array.isArray(payload.predictions) ? payload.predictions
         .map((item) => ({ place_id: cleanText(item?.place_id), description: cleanText(item?.description) }))

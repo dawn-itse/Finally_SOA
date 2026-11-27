@@ -88,6 +88,10 @@ function formatMenuItemPriceRange(item) {
  * Screen 1: Home Weather & Floating Food Illustration Greeting
  */
 export function renderHomeHero(weatherContext) {
+  const weatherTime = new Date(weatherContext.fetchedAt);
+  const weatherLabel = weatherContext.weatherSource === 'meteosource' && Number.isFinite(weatherTime.getTime())
+    ? `Meteosource · Lấy lúc ${weatherTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
+    : 'Dữ liệu mẫu';
   return `
     <section class="home-hero-section">
       <div class="food-illustration-stage">
@@ -111,11 +115,11 @@ export function renderHomeHero(weatherContext) {
       <h1 class="hero-question-title">Bạn muốn ăn món gì?</h1>
 
       <div class="weather-badge-line">
-        <span>${weatherContext.temp}° · ${weatherContext.condition}</span>
+        <span>${weatherContext.temp}° · ${escapeHtml(weatherContext.condition)} · ${weatherLabel}</span>
       </div>
 
       <p class="weather-context-quote" id="btnWeatherSuggestion" title="Nhấn để thử gợi ý này">
-        ${weatherContext.suggestionQuote}
+        ${escapeHtml(weatherContext.suggestionQuote)}
       </p>
     </section>
   `;
@@ -235,13 +239,17 @@ export function renderConversationStream(state) {
  */
 export function renderResultsSection(state) {
   const { dish, budget, radiusKm, viewMode, sortBy, partySize, favorites } = state;
-  const { totalMatchedCount, heroRestaurant, nearbyOthers, searchAnchor } = state.searchResults;
+  const { totalMatchedCount, heroRestaurant, nearbyOthers, searchAnchor, suggestions = [], discoveryStatus } = state.searchResults;
   const range = `trong ${radiusKm} km từ ${describeAnchor(searchAnchor)} (đường chim bay)`;
 
   if (!heroRestaurant) {
     return `
       <div class="results-container">
-        <p class="bot-bubble">Chưa tìm thấy quán có ${escapeHtml(dish)} trong mức ${formatK(budget)} ${escapeHtml(range)}. Bạn có thể đổi bộ lọc.</p>
+        <p class="bot-bubble">Chưa tìm thấy quán trong catalog có ${escapeHtml(dish)} với giá tối đa ${formatK(budget)} ${escapeHtml(range)}.</p>
+        ${discoveryStatus === 'searching' ? '<p class="discovery-status" role="status">Đang tìm thêm địa điểm qua Goong…</p>' : ''}
+        ${discoveryStatus === 'unavailable' ? '<p class="discovery-status" role="status">Chưa thể tìm thêm địa điểm qua Goong. Bạn có thể đổi bộ lọc hoặc thử lại.</p>' : ''}
+        ${discoveryStatus === 'empty' ? '<p class="discovery-status" role="status">Không có địa điểm gợi ý trong bán kính này. Bạn có thể đổi bộ lọc.</p>' : ''}
+        ${suggestions.length ? renderDiscoverySuggestions(suggestions) : ''}
         <button type="button" class="btn-add-place-inline" data-action="open-add-restaurant-modal">Đề xuất quán</button>
       </div>
     `;
@@ -295,6 +303,31 @@ export function renderResultsSection(state) {
           : renderHeroCardAndNearbyList(heroRestaurant, nearbyOthers, favorites, partySize, radiusKm)
       }
     </div>
+  `;
+}
+
+function renderDiscoverySuggestions(places) {
+  return `
+    <section class="discovery-section" aria-label="Địa điểm gợi ý từ Goong">
+      <h3>Địa điểm gợi ý từ Goong</h3>
+      <p>Chưa xác nhận món và giá</p>
+      <ul class="discovery-list">
+        ${places.map((place) => {
+          const map = new URL('https://www.google.com/maps/search/');
+          map.search = new URLSearchParams({ api: '1', query: `${place.latitude},${place.longitude}` });
+          return `
+            <li class="discovery-card">
+              <div>
+                <strong>${escapeHtml(place.name)}</strong>
+                <p>${escapeHtml(place.address)}</p>
+                <p>${formatDistance(place.distanceKm)} · Đường chim bay</p>
+              </div>
+              <a class="btn-add-place-inline" href="${escapeHtml(map.href)}" target="_blank" rel="noopener noreferrer">Xem trên bản đồ</a>
+            </li>
+          `;
+        }).join('')}
+      </ul>
+    </section>
   `;
 }
 

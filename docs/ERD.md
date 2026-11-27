@@ -41,6 +41,11 @@ erDiagram
         datetime(3) geocoded_at
         tinyint(1) is_primary
     }
+    RESTAURANT_DISCOVERY {
+        char(36) location_id PK, FK
+        varchar dish_keyword PK
+        datetime(3) discovered_at
+    }
     SEARCH_AREA {
         char(36) area_id PK
         varchar name UK
@@ -168,6 +173,7 @@ erDiagram
     APP_USER ||--o{ AUDIT_EVENT : performs
 
     RESTAURANT ||--|{ RESTAURANT_LOCATION : located_at
+    RESTAURANT_LOCATION ||--o{ RESTAURANT_DISCOVERY : suggested_for
     RESTAURANT ||--o{ MENU_ITEM : offers
     RESTAURANT ||--o{ REVIEW : receives
     RESTAURANT |o--o{ CONTRIBUTION : concerns
@@ -188,11 +194,12 @@ erDiagram
 
 ## 1. Ý nghĩa và ràng buộc quan trọng
 
-- `RESTAURANT.visibility_status`: `PENDING`, `PUBLISHED`, `REJECTED`, `SUSPENDED`, `CLOSED` (quán đóng cửa sau khi Admin duyệt `CLOSED_REPORT`). Chỉ `PUBLISHED` xuất hiện trong tìm kiếm công khai.
+- `RESTAURANT.visibility_status`: `PENDING`, `PUBLISHED`, `REJECTED`, `SUSPENDED`, `CLOSED` (quán đóng cửa sau khi Admin duyệt `CLOSED_REPORT`). Danh sách quán có món và giá chỉ lấy `PUBLISHED`. Khu vực gợi ý địa điểm dùng liên kết `RESTAURANT_DISCOVERY` và chỉ xét quán `PENDING` hoặc `PUBLISHED`.
 - Xác minh thuộc về **quán** (gồm cả giá), không thuộc về từng dòng giá. Không có cột `is_verified`: quán "Đã xác minh" khi `verified_at IS NOT NULL`, ngược lại là "Chưa xác minh". `verified_at` và `verified_by` luôn cùng null hoặc cùng có giá trị. Mỗi lần Admin duyệt một thay đổi của quán, thực đơn hoặc giá, hệ thống cập nhật lại `verified_at`, `verified_by` và ghi `AUDIT_EVENT`, để nhãn "Đã xác minh" không còn đúng khi thông tin đã đổi mà chưa ai kiểm tra lại. Quán "Chưa xác minh" vẫn được hiển thị (đã qua duyệt để `PUBLISHED`); nhãn chỉ cho biết Admin đã kiểm chứng thông tin hay chưa.
 - `RESTAURANT_LOCATION` lưu một địa chỉ/chi nhánh. Địa điểm Goong dùng `formatted_address` → `address_text`, `geometry.location.lat/lng` → `latitude/longitude`, `place_id` → `provider_place_id`. `compound.commune/province` lưu phường/xã và tỉnh/thành theo địa giới mới. `deprecated_description` lưu tùy chọn ở `deprecated_address_text` và chỉ để tham chiếu.
 - `provider` là nguồn của địa chỉ. `GOONG` có mã địa điểm và thời điểm tra cứu `geocoded_at`, `MANUAL` có tọa độ do Admin xác nhận, còn tham chiếu OSM cũ dùng `OSM` và mã dạng `node/…` hoặc `way/…`. Mã nội bộ vẫn là `location_id`; `RESTAURANT.source_type/source_ref` ghi nguồn tạo bản ghi quán.
-- `SEARCH_AREA` là danh sách khu vực được chọn khi tìm quán. Mỗi dòng có một địa chỉ mốc và một cặp tọa độ. Admin có thể sửa mốc, đặt thứ tự hoặc ẩn khu vực. `anchor_place_id` có giá trị khi chọn mốc từ Goong. Vị trí GPS, ngân sách và bán kính chỉ thuộc truy vấn hiện tại.
+- `RESTAURANT_DISCOVERY` lưu từ khóa chuẩn hóa dẫn đến một chi nhánh Goong. Khóa `(location_id, dish_keyword)` cho phép một địa điểm được tìm thấy qua nhiều từ khóa. Lấy `restaurant_id` từ chi nhánh để nhóm quán. `discovered_at` ghi thời điểm lần đầu lưu liên kết. Từ khóa chỉ phục vụ tìm lại địa điểm.
+- `SEARCH_AREA` là danh sách khu vực được chọn khi tìm quán. Mỗi dòng có một địa chỉ mốc và một cặp tọa độ. Admin có thể sửa mốc, đặt thứ tự hoặc ẩn khu vực. `anchor_place_id` có giá trị khi chọn mốc từ Goong. GPS, ngân sách và bán kính chỉ thuộc truy vấn hiện tại. Gợi ý lưu tọa độ chi nhánh để tính lại khoảng cách theo tâm tìm mới.
 - `SEARCH_AREA` đứng riêng trong ERD. Một quán có thể nằm trong bán kính của nhiều mốc. Kết quả được tính theo tọa độ và bán kính tại thời điểm tìm, nên không có khóa ngoại giữa `SEARCH_AREA` và `RESTAURANT_LOCATION`.
 - `MENU_ITEM` giữ danh tính món; `PRICE_ASSERTION` lưu các lần ghi nhận giá để bảo toàn lịch sử. Giá hiện hành là dòng có `is_current = true`, mỗi món tối đa một dòng; món không có dòng `is_current = true` thì API trả `NO_PRICE`. Gỡ giá sai chỉ đặt `is_current = false`, không xóa lịch sử.
 - `PRICE_ASSERTION` không có `status`, `verified_at`, `verified_by` hay `observed_at`. Mốc thời gian của một mức giá là `created_at`, tức thời điểm Admin duyệt (hoặc thời điểm nhập dữ liệu đối với giá import ban đầu). UI nên ghi "cập nhật ngày …" theo mốc này, không phải ngày người dùng nhìn thấy giá.
@@ -305,21 +312,26 @@ CREATE TABLE restaurant_location (
 );
 ```
 
-Tìm quán trong bán kính quanh một mốc (`@lat`, `@lng`, `@radius_m` tính bằng mét; 1 độ vĩ ≈ 111 320 m):
+Ví dụ chọn chi nhánh gần nhất trong bán kính cho mỗi quán công khai. Tâm tìm là `@lat`, `@lng` và bán kính `@radius_m` tính bằng mét. Ghép thêm điều kiện món và giá trên cùng một món khi chạy tìm kiếm catalog.
 
 ```sql
-SELECT l.restaurant_id, l.location_id,
-       ST_Distance_Sphere(POINT(l.longitude, l.latitude), POINT(@lng, @lat), 6371000) AS distance_m
-FROM restaurant_location l
-JOIN restaurant r ON r.restaurant_id = l.restaurant_id AND r.visibility_status = 'PUBLISHED'
-WHERE l.is_primary = 1
-  AND l.latitude  BETWEEN @lat - @radius_m / 111320 AND @lat + @radius_m / 111320
-  AND l.longitude BETWEEN @lng - @radius_m / (111320 * COS(RADIANS(@lat)))
-                      AND @lng + @radius_m / (111320 * COS(RADIANS(@lat)))
-HAVING distance_m <= @radius_m;
+WITH distances AS (
+  SELECT l.restaurant_id, l.location_id,
+         ST_Distance_Sphere(POINT(l.longitude, l.latitude), POINT(@lng, @lat), 6371000) AS distance_m
+  FROM restaurant_location l
+  JOIN restaurant r ON r.restaurant_id = l.restaurant_id AND r.visibility_status = 'PUBLISHED'
+), ranked AS (
+  SELECT restaurant_id, location_id, distance_m,
+         ROW_NUMBER() OVER (PARTITION BY restaurant_id ORDER BY distance_m, location_id) AS branch_rank
+  FROM distances
+  WHERE distance_m <= @radius_m
+)
+SELECT restaurant_id, location_id, distance_m
+FROM ranked
+WHERE branch_rank = 1;
 ```
 
-Bán kính Trái Đất `6371000` khớp với Haversine của frontend mock (`R = 6371` km), nên kết quả hai bên khớp nhau. Khung bao quanh chỉ để index lọc nhanh, phép cắt chính xác là `HAVING`. Nếu bản MySQL đang dùng không chấp nhận `ST_Distance_Sphere` với `POINT` mặc định, thay bằng công thức Haversine viết tay trong SQL.
+Bán kính Trái Đất `6371000` khớp với Haversine của frontend mock (`R = 6371` km). Nếu thêm khung lọc sơ bộ để tối ưu, khung phải bao trọn bán kính. `is_primary` dùng cho địa chỉ mặc định của hồ sơ quán.
 
 Nếu nâng cấp DB cũ, chép `osm_type/osm_id` sang `provider='OSM'`, `provider_place_id='type/id'` trước khi bỏ hai cột cũ. Địa chỉ thủ công dùng `MANUAL`. Mock tính bằng JavaScript và chuyển bản ghi cũ khi đọc localStorage. Tra cứu Goong lỗi hoặc chưa có tọa độ hợp lệ thì đề xuất vẫn có thể nằm trong hàng chờ. Khi công khai, Admin phải chọn kết quả Goong hoặc xác nhận đủ hai tọa độ thủ công.
 
@@ -336,6 +348,24 @@ WHERE status = 'ACTIVE'
 ```
 
 Dùng `LOCATE` thay cho `LIKE` để không phải escape ký tự `%` và `_` trong từ khóa người dùng.
+
+### Lưu và tìm lại gợi ý địa điểm
+
+```sql
+CREATE TABLE restaurant_discovery (
+  location_id   CHAR(36)     NOT NULL,
+  dish_keyword  VARCHAR(100) NOT NULL,
+  discovered_at DATETIME(3)  NOT NULL,
+  PRIMARY KEY (location_id, dish_keyword),
+  KEY restaurant_discovery_keyword_ix (dish_keyword, location_id),
+  CONSTRAINT restaurant_discovery_location_fk
+    FOREIGN KEY (location_id) REFERENCES restaurant_location (location_id) ON DELETE RESTRICT
+);
+```
+
+Khi catalog trả 0 kết quả, truy vấn bảng này theo từ khóa đã chuẩn hóa, nối với chi nhánh và quán, lọc trạng thái và bán kính của lượt tìm. Chỉ gọi Geo Service tìm mới khi cũng không có gợi ý đã lưu. Ví dụ, `bún bò` và `bun bo` dùng chung khóa `bun bo`.
+
+Khi ghi kết quả Goong, Catalog tạo quán `PENDING`, chi nhánh và liên kết từ khóa trong cùng giao dịch. Khóa duy nhất `(provider, provider_place_id)` nhận diện chi nhánh từ nguồn ngoài và ánh xạ về `restaurant_id` nội bộ ổn định. Nếu hai request gặp cùng địa điểm, giao dịch gặp khóa trùng phải rollback phần tạo quán rồi tái sử dụng chi nhánh của giao dịch đã ghi thành công. Giữ nguyên thông tin kiểm duyệt, menu và giá của bản ghi đã có. Bản ghi nhập tay chỉ được hợp nhất khi xác nhận trùng địa điểm.
 
 ### Danh sách khu vực tìm kiếm
 
@@ -364,12 +394,12 @@ Geo Service cấp ID khi tạo và duy trì ít nhất một khu vực đang ho�
 
 Phân vùng dưới đây khớp 1-1 với `backend/api-gateway/` (`4000`) và 7 service nghiệp vụ (`4001`–`4007`) trong [kiến trúc SOA](SOA_ARCHITECTURE.md) và [bảng phân công](TEAM_ASSIGNMENT.md):
 
-| Service sở hữu | Port | Dữ liệu logic (18 bảng trong ERD) |
+| Service sở hữu | Port | Dữ liệu logic (19 bảng trong ERD) |
 |---|---|---|
 | `api-gateway` | `4000` | Không sở hữu bảng nghiệp vụ (định tuyến, tổng hợp BFF, Auth Guard kiểm tra token và chuyển tiếp danh tính). |
 | `context-weather-service` | `4001` | Không sở hữu bảng cốt lõi (cache ngữ cảnh thời tiết & gợi ý món theo khung giờ). |
 | `nlp-conversation-service` | `4002` | Không sở hữu bảng cốt lõi (stateless: chuẩn hóa từ khóa món ăn & gợi ý có sẵn). |
-| `restaurant-search-service` (Catalog & Search) | `4003` | `RESTAURANT`, `RESTAURANT_LOCATION`, `CUISINE`, `RESTAURANT_CUISINE`, `MENU_ITEM`, `PRICE_ASSERTION`. |
+| `restaurant-search-service` (Catalog & Search) | `4003` | `RESTAURANT`, `RESTAURANT_LOCATION`, `RESTAURANT_DISCOVERY`, `CUISINE`, `RESTAURANT_CUISINE`, `MENU_ITEM`, `PRICE_ASSERTION`. |
 | `routing-geo-service` (Geo & Routing) | `4004` | `SEARCH_AREA` và tích hợp Goong V2. (`RESTAURANT_LOCATION` vẫn thuộc `restaurant-search-service`). |
 | `feedback-review-service` (Feedback & Moderation) | `4005` | `REVIEW`, `PRICE_REPORT`, `CONTRIBUTION`, `AUDIT_EVENT` (hàng đợi kiểm duyệt và nhật ký nghiệp vụ). |
 | `user-preference-service` (Preference) | `4006` | `USER_PREFERENCE`, `DIETARY_RESTRICTION`, `USER_RESTRICTION`, `DISH_CATEGORY`, `USER_FAVORITE_DISH`, `FAVORITE_RESTAURANT`. |
@@ -429,7 +459,7 @@ Ranh giới với `PRICE_REPORT`: người dùng muốn báo giá của một m�
 
 **Vì sao Guest personalization không có trong ERD server?** Guest lưu trên storage của browser nên chưa có bản ghi phía server. Chỉ khi đăng nhập và chọn đồng bộ, Preference Service mới lưu các preference gắn `user_id`.
 
-**Goong đi vào ERD ở đâu?** Kết quả chọn địa chỉ cung cấp địa chỉ, tọa độ và mã tham chiếu cho `RESTAURANT_LOCATION`. Catalog quản lý mã nội bộ của quán và quyết định công khai. Xem [Goong Place Detail V2](https://help.goong.io/kb/rest-api-v2/place-detail-rest-api-v2/place-detail-place-detail-v2/).
+**Goong đi vào ERD ở đâu?** Địa chỉ, tọa độ và mã nơi chốn được lưu ở `RESTAURANT_LOCATION`. Kết quả từ nhánh tìm bổ sung còn có từ khóa lưu trong `RESTAURANT_DISCOVERY` để lần sau tìm lại từ MySQL. Catalog quản lý mã nội bộ và trạng thái công khai của quán. [Goong Place Detail V2](https://help.goong.io/kb/rest-api-v2/place-detail-rest-api-v2/place-detail-place-detail-v2/)
 
 **Vì sao thêm `SEARCH_AREA`?** Một địa danh như “Quận 4” biểu thị một vùng, còn phép tìm trong bán kính cần một điểm. `SEARCH_AREA` lưu điểm mốc do Admin chọn. Khi khách chia sẻ vị trí thiết bị, lượt tìm dùng tọa độ thiết bị làm tâm.
 

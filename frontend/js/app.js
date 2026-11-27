@@ -3,8 +3,8 @@
  */
 
 import { SOAApiClient, onServiceLog, emitServiceTrace, DB_STORAGE_KEY, DEFAULT_BUDGET, DEFAULT_RADIUS_KM } from './demo/apiClient.js';
-import { parseUserUtterance, readDishName } from './demo/nlpParser.js';
-import { geoPoint, requestGeo } from './api/geo.js';
+import { discoverPlaces, geoPoint, requestGeo } from './api/geo.js';
+import { resolveDish } from './api/nlp.js';
 import { bindAddressLookup, getSelectedLocation } from './components/addressLookup.js';
 import {
   renderHomeHero,
@@ -63,8 +63,8 @@ const modalOverlayEl = document.getElementById('appModalOverlay');
 const modalSheetEl = document.getElementById('appModalSheet');
 const serviceLogBoxEl = document.getElementById('serviceLogBox');
 
-let scanTimer = null;
-let matrixRequest = null;
+let searchRequest = null;
+let nlpRequest = null;
 let locationRevision = 0;
 
 function syncFavoritesFromPreferences() {
@@ -117,27 +117,50 @@ function showDishInputNotice(message = '') {
 
 function runCurrentSearch() {
   const origin = getSearchOrigin();
-  const results = SOAApiClient.searchRestaurants({
+  const criteria = {
     dish: appState.dish,
     budget: appState.budget,
     radiusKm: appState.radiusKm,
     sortBy: appState.sortBy,
     partySize: appState.partySize,
     anchor: origin
-  });
-  matrixRequest?.abort();
+  };
+  const results = SOAApiClient.searchRestaurants(criteria);
+  searchRequest?.abort();
+  const controller = new AbortController();
+  searchRequest = controller;
+  const isCurrent = () => !controller.signal.aborted && appState.searchResults === results && appState.step === 'RESULTS';
+  if (!results.totalMatchedCount) {
+    if (appState.explorerOpen) closeExplorer();
+    if (origin) {
+      results.suggestions = SOAApiClient.getDiscoverySuggestions(criteria);
+      if (!results.suggestions.length) {
+        results.discoveryStatus = 'searching';
+        discoverPlaces(criteria.dish, origin, criteria.radiusKm, controller.signal).then((places) => {
+          if (!isCurrent()) return;
+          results.suggestions = SOAApiClient.saveDiscoverySuggestions(criteria, places);
+          results.discoveryStatus = results.suggestions.length ? null : 'empty';
+          renderUI();
+        }).catch(() => {
+          if (!isCurrent()) return;
+          results.discoveryStatus = 'unavailable';
+          renderUI();
+        });
+      }
+    }
+    return results;
+  }
+
   const places = [results.heroRestaurant, ...results.nearbyOthers].filter((place) =>
     place && place.nearestLocation?.location_id && place.transportMode !== 'WALKING'
   ).slice(0, 10);
   if (!places.length) return results;
 
-  const controller = new AbortController();
-  matrixRequest = controller;
   requestGeo('distance-matrix', {
     origin: geoPoint(origin),
     destinations: places.map(geoPoint).join('|')
   }, controller.signal).then((cells) => {
-    if (controller.signal.aborted || appState.searchResults !== results || appState.step !== 'RESULTS') return;
+    if (!isCurrent()) return;
     places.forEach((place, index) => {
       const route = cells[index];
       if (!route) return;
@@ -163,6 +186,7 @@ function initApp() {
   renderUI();
   bindGlobalEvents();
   startPlaceholderTypewriter();
+  void updateWeatherAtCoordinates(getSearchOrigin(), locationRevision);
 }
 
 /**
@@ -206,8 +230,15 @@ function renderUI() {
 /**
  * Use the input for the dish. Budget and radius come from the dock.
  */
-function handleUserQuery(rawInput) {
-  const dish = readDishName(rawInput);
+async function handleUserQuery(rawInput, source = 'input') {
+  nlpRequest?.abort();
+  const controller = new AbortController();
+  nlpRequest = controller;
+  showDishInputNotice();
+  const result = await resolveDish(rawInput, source, controller.signal);
+  if (controller.signal.aborted) return;
+  nlpRequest = null;
+  const dish = result?.dish;
   if (!dish) {
     showDishInputNotice('Chỉ nhập tên món, ví dụ “bún bò”. Chọn giá và bán kính ở các nút bên dưới.');
     return searchInputEl.focus();
@@ -216,29 +247,19 @@ function handleUserQuery(rawInput) {
     locationStatusEl.textContent = 'Chọn điểm tìm kiếm trước khi tìm quán.';
     return;
   }
-  showDishInputNotice();
   searchInputEl.value = '';
   appState.dish = dish;
   appState.messages.push({ sender: 'user', text: dish });
-  triggerRadarThenResults();
+  showSearchResults();
 }
 
-function triggerRadarThenResults(delayMs = 950) {
-  clearTimeout(scanTimer);
-  matrixRequest?.abort();
+function showSearchResults() {
   closeExplorer();
-  appState.searchResults = null;
   appState.step = 'RESULTS';
-  appState.isScanning = true;
+  appState.isScanning = false;
+  appState.searchResults = runCurrentSearch();
   renderUI();
-  scrollToBottom();
-
-  scanTimer = setTimeout(() => {
-    appState.isScanning = false;
-    appState.searchResults = runCurrentSearch();
-    renderUI();
-    scrollToResults();
-  }, delayMs);
+  scrollToResults();
 }
 
 function scrollToResults() {
@@ -288,6 +309,10 @@ function startPlaceholderTypewriter() {
 
 async function updateWeatherAtCoordinates(coordinates, revision) {
   if (!coordinates) return;
+  if (appState.weatherContext.fetchedAt) {
+    appState.weatherContext = SOAApiClient.getWeatherGreeting(appState.weatherIndex);
+    renderUI();
+  }
   const weather = await SOAApiClient.getWeatherForCoordinates(coordinates);
   if (revision !== locationRevision) return;
   appState.weatherContext = weather;
@@ -652,19 +677,22 @@ function bindGlobalEvents() {
   bindAddressLookup(modalSheetEl, getSearchOrigin);
   btnCurrentLocationEl.addEventListener('click', requestDeviceLocation);
 
-  btnSubmitSearchEl.addEventListener('click', () => handleUserQuery(searchInputEl.value));
-  searchInputEl.addEventListener('input', () => showDishInputNotice());
+  btnSubmitSearchEl.addEventListener('click', () => void handleUserQuery(searchInputEl.value));
+  searchInputEl.addEventListener('input', () => {
+    nlpRequest?.abort();
+    showDishInputNotice();
+  });
 
   searchInputEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.isComposing) {
       e.preventDefault();
-      handleUserQuery(searchInputEl.value);
+      void handleUserQuery(searchInputEl.value);
     }
   });
 
   const resetToHome = () => {
-    clearTimeout(scanTimer);
-    matrixRequest?.abort();
+    searchRequest?.abort();
+    nlpRequest?.abort();
     closeExplorer();
     appState.step = 'HOME';
     appState.dish = null;
@@ -706,20 +734,19 @@ function bindGlobalEvents() {
 
     const foodArt = e.target.closest('[data-quick-dish]');
     if (foodArt) {
-      handleUserQuery(foodArt.getAttribute('data-quick-dish'));
+      void handleUserQuery(foodArt.getAttribute('data-quick-dish'));
       return;
     }
 
     if (e.target.closest('#btnWeatherSuggestion')) {
-      const suggestion = parseUserUtterance(appState.weatherContext.suggestedQuery, appState).extractedDish;
-      if (suggestion) handleUserQuery(suggestion);
+      void handleUserQuery(appState.weatherContext.suggestedQuery, 'suggestion');
       return;
     }
 
     const budgetBtn = e.target.closest('[data-budget]');
     if (budgetBtn) {
       appState.budget = Number(budgetBtn.dataset.budget);
-      if (appState.dish) triggerRadarThenResults();
+      if (appState.dish) showSearchResults();
       return;
     }
 
@@ -1121,8 +1148,7 @@ function closeExplorer() {
 }
 
 function jumpToScreenshotState(screenNum) {
-  if (scanTimer) clearTimeout(scanTimer);
-  matrixRequest?.abort();
+  searchRequest?.abort();
   showDishInputNotice();
   closeExplorer();
 

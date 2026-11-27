@@ -8,9 +8,9 @@
 
 1. Khách có thể tìm kiếm, xem quán và dùng cá nhân hóa cơ bản mà không cần đăng nhập.
 2. Goong V2 xử lý gợi ý địa chỉ, lấy tọa độ và tính đường đi. Trình duyệt cung cấp tọa độ thiết bị khi được cấp quyền.
-3. Catalog của Mua Gì Đây cung cấp quán, món và giá để tìm kiếm. Kết quả địa chỉ từ Goong hỗ trợ việc nhập hoặc kiểm tra vị trí quán.
+3. Catalog của Mua Gì Đây cung cấp quán, món và giá để tìm kiếm. Khi MySQL không có quán phù hợp hay gợi ý đã lưu, hệ thống tra cứu địa điểm qua Goong và lưu kết quả hợp lệ cho lần sau.
 4. Giá hiện hành lấy từ lần cập nhật giá được Admin duyệt sau cùng. Hệ thống lưu các mức giá trước đó cùng nguồn và thời điểm. Nhãn “Đã xác minh” thuộc về quán và dựa vào `verified_at`.
-5. Ô chat nhận tên món. Mốc, ngân sách và bán kính lấy từ các điều khiển tìm kiếm. Catalog quyết định kết quả tìm quán.
+5. Ô chat nhận tên món. Mốc, ngân sách và bán kính lấy từ các điều khiển tìm kiếm. Mục gợi ý địa điểm ghi rõ “Chưa xác nhận món và giá”.
 6. Đăng nhập là tùy chọn cho trải nghiệm thông thường; yêu cầu tài khoản cho các đóng góp có trách nhiệm như review, đề xuất quán và báo cáo giá chính thức.
 
 ## 2. Quy ước actor và ba nhóm actor
@@ -28,8 +28,8 @@
 | Người dùng có tài khoản (User) | Người dùng | Các quyền của Guest; đồng bộ sở thích/yêu thích và gửi review, báo cáo giá hoặc đề xuất quán. |
 | Admin | Người dùng vận hành | Kiểm duyệt quán mới, xử lý báo cáo, xác minh và cập nhật catalog. Tài khoản do hệ thống cấp. |
 | Trình duyệt Geolocation API | Hệ thống ngoài | Xin quyền và trả tọa độ thiết bị khi người dùng đồng ý. |
-| Goong REST API V2 | Hệ thống ngoài | Gợi ý và chuẩn hóa địa chỉ, đổi tọa độ thiết bị thành nhãn hiển thị, tính quãng đường và thời gian đi. |
-| WeatherAPI | Hệ thống ngoài | Cung cấp thời tiết theo tọa độ/khu vực. |
+| Goong REST API V2 | Hệ thống ngoài | Tìm địa điểm khi DB không có dữ liệu dùng được, gợi ý và chuẩn hóa địa chỉ, đổi tọa độ thiết bị thành nhãn hiển thị, tính quãng đường và thời gian đi. |
+| Meteosource | Hệ thống ngoài | Cung cấp thời tiết theo tọa độ/khu vực. |
 | Gemini API (tùy chọn) | Hệ thống ngoài | Hỗ trợ phân tích câu tìm kiếm tự nhiên thành intent/slots có cấu trúc; không tự xác minh hoặc sinh quán. |
 | Dịch vụ nền SOA | Hệ thống | `api-gateway` (`4000`) và 7 service: `context-weather-service` (`4001`), `nlp-conversation-service` (`4002`), `restaurant-search-service` (`4003`), `routing-geo-service` (`4004`), `feedback-review-service` (`4005`), `user-preference-service` (`4006`), `auth-service` (`4007`). |
 
@@ -55,8 +55,14 @@ flowchart TD
     M --> I
     L -->|Không| N[Restaurant Search tìm catalog PUBLISHED]
     N --> O[Lọc giá của món khớp và chọn chi nhánh gần nhất trong bán kính]
-    O -->|Có quán| P[Geo bổ sung quãng đường đi cho kết quả đầu]
-    O -->|Không có quán| H0[Hiện kết quả rỗng và cho đổi bộ lọc]
+    O -->|Có ít nhất 1 quán| P[Trả kết quả catalog và bổ sung quãng đường nếu có]
+    O -->|0 quán| N0{MySQL có gợi ý phù hợp đã lưu?}
+    N0 -->|Có| N4[Hiển thị địa điểm gợi ý và ghi chưa xác nhận món và giá]
+    N0 -->|Không| N1[Geo Service tìm địa điểm qua Goong]
+    N1 --> N2{Có địa điểm hợp lệ?}
+    N2 -->|Có| N3[Lưu quán, chi nhánh và từ khóa vào MySQL]
+    N3 --> N4
+    N2 -->|Không hoặc API lỗi| H0[Hiện kết quả rỗng và cho đổi bộ lọc]
     H0 --> I
     P --> Q[Hiển thị quán, giá, ngày cập nhật và nhãn xác minh của quán]
     Q --> R{Thao tác tiếp theo?}
@@ -141,12 +147,12 @@ flowchart TD
 |---|---|
 | Mục tiêu | Cho ngữ cảnh thời tiết hiện tại và gợi ý món theo thời tiết/thời gian. |
 | Primary actor | Guest hoặc User. |
-| Supporting actors | Frontend, API Gateway, Context-Weather Service, WeatherAPI. |
+| Supporting actors | Frontend, API Gateway, Context-Weather Service, Meteosource. |
 | Offstage actors | Quán có món được gợi ý. |
 | Tiền điều kiện | Có vị trí do người dùng chọn hoặc vị trí mặc định của ứng dụng. |
 | Kích hoạt | Mở trang chính hoặc đổi vị trí. |
 | Luồng chính | 1) Frontend yêu cầu context. 2) Weather Service gọi provider bằng tọa độ/khu vực. 3) Chuẩn hóa nhiệt độ, điều kiện và thời điểm cập nhật. 4) Trả gợi ý món phù hợp. |
-| Ngoại lệ | Provider lỗi/thiếu dữ liệu: hiển thị thời tiết không khả dụng hoặc cache có dấu thời gian; không trình bày dữ liệu cũ như thời tiết trực tiếp. |
+| Ngoại lệ | Provider lỗi hoặc thiếu dữ liệu: bản preview hiển thị thông tin có nhãn “Dữ liệu mẫu”. |
 | Hậu điều kiện | Ngữ cảnh được hiển thị cùng nguồn/thời điểm thích hợp. |
 
 ### UC-04 — Tìm quán theo tên món và bộ lọc
@@ -155,13 +161,13 @@ flowchart TD
 |---|---|
 | Mục tiêu | Tìm quán phù hợp với món, mức giá, vị trí và bán kính. |
 | Primary actor | Guest hoặc User. |
-| Supporting actors | Frontend, API Gateway, Restaurant Search/Catalog Service, Geo Service. |
+| Supporting actors | Frontend, API Gateway, NLP Service, Restaurant Search/Catalog Service, MySQL, Geo Service, Goong. |
 | Offstage actors | Quán có thể xuất hiện trong kết quả; người dùng khác. |
 | Tiền điều kiện | Có tên món hợp lệ, điểm bắt đầu, ngân sách tối đa mỗi người và bán kính. |
-| Kích hoạt | Nhập “bún bò”, chọn giá tối đa 40k, bán kính 2 km và bấm “Tìm quán”. |
-| Luồng chính | 1) Chuẩn hóa tên món để tìm có dấu hoặc không dấu. 2) Xét mọi chi nhánh của quán `PUBLISHED` và chọn chi nhánh gần nhất trong bán kính đường chim bay. 3) Giữ quán có món `ACTIVE` khớp tên, có giá hiện hành và có `min_price` của món nhỏ hơn hoặc bằng ngân sách. 4) Trả một kết quả mỗi quán với địa chỉ chi nhánh đã chọn, giá món khớp và nhãn điểm mốc. 5) Bổ sung quãng đường đi bằng Goong khi có. |
-| Ngoại lệ | Sai đầu vào: hướng dẫn nhập tên món và dùng bộ lọc riêng. Không có kết quả: hiện danh sách rỗng và cho người dùng đổi bộ lọc hoặc đề xuất quán. |
-| Hậu điều kiện | Chỉ quán đủ điều kiện công khai xuất hiện; nhãn xác minh của quán được giữ nguyên như dữ liệu catalog. |
+| Kích hoạt | Nhập “bún bò”, dùng GPS hoặc mốc đã chọn, đặt ngân sách tối đa 40k và bán kính 3 km rồi bấm “Tìm quán”. |
+| Luồng chính | 1) Chuẩn hóa tên món. 2) Truy vấn MySQL để xét mọi chi nhánh của quán `PUBLISHED` trong bán kính đường chim bay. Giữ quán có món `ACTIVE` khớp tên và giá hiện hành trong ngân sách. 3) Trả ngay một kết quả cho mỗi quán, chọn chi nhánh gần nhất. Từ 5 quán là đủ theo ví dụ; 1–4 quán cũng trả ngay. 4) Khi có 0 quán, tra gợi ý đã lưu theo từ khóa và bán kính. 5) Nếu gợi ý đã lưu cũng trống, gọi Goong, lưu địa điểm hợp lệ cùng mã quán nội bộ và hiển thị với nhãn “Chưa xác nhận món và giá”. |
+| Ngoại lệ | Đầu vào sai thì hướng dẫn sửa. Nếu Goong lỗi hoặc không có địa điểm hợp lệ, hiển thị kết quả rỗng và cho đổi bộ lọc hoặc đề xuất quán. Lỗi DB trả lỗi truy vấn. |
+| Hậu điều kiện | Quán nhập mới được lưu `PENDING`. Lượt tìm lại cùng từ khóa trong bán kính bao phủ chi nhánh đã lưu dùng trực tiếp MySQL. Món, giá và nhãn xác minh của catalog giữ nguyên cho đến khi được cập nhật qua kiểm duyệt. |
 
 ### UC-05 — Điều chỉnh và sắp xếp kết quả
 
@@ -173,8 +179,8 @@ flowchart TD
 | Offstage actors | Quán trong tập kết quả. |
 | Tiền điều kiện | Có kết quả tìm kiếm hoặc điều kiện tìm kiếm hiện tại. |
 | Kích hoạt | Đổi ngân sách, bán kính, khu vực hoặc tiêu chí sắp xếp bằng các nút chọn. |
-| Luồng chính | 1) Cập nhật tiêu chí. 2) Backend kiểm tra miền giá trị. 3) Search Service áp bộ lọc/sắp xếp. 4) Trả kết quả và số lượng phù hợp. |
-| Ngoại lệ | Bán kính/giá không hợp lệ: yêu cầu chọn lại. Không có kết quả sau lọc: cho đổi điều kiện. |
+| Luồng chính | 1) Cập nhật tiêu chí. 2) Backend kiểm tra miền giá trị. 3) Search Service chạy lại luồng UC-04 với tiêu chí mới và trả kết quả đã sắp xếp. |
+| Ngoại lệ | Bán kính hoặc giá sai thì yêu cầu chọn lại. Nếu cả catalog lẫn gợi ý đều trống sau khi chạy UC-04, cho đổi điều kiện. |
 | Hậu điều kiện | Bộ lọc mới áp dụng cho phiên tìm kiếm; Guest không cần đăng nhập. |
 
 ### UC-06 — Xem quán, menu, trạng thái giá và mở chỉ đường
@@ -258,8 +264,8 @@ flowchart TD
 | Tiền điều kiện | Admin có quyền và đề xuất đang ở trạng thái `PENDING`. |
 | Kích hoạt | Admin mở hàng chờ kiểm duyệt. |
 | Luồng chính | 1) Xem thông tin, bằng chứng và dấu hiệu trùng. 2) Kiểm tra địa chỉ và tọa độ cùng nguồn. 3) Nếu sửa địa chỉ, chọn lại gợi ý Goong hoặc nhập cả vĩ độ và kinh độ đã kiểm tra. 4) Backend kiểm tra quyền, trạng thái và mã địa điểm trùng. 5) Khi duyệt, tạo/cập nhật quán và địa điểm, đồng thời ghi nhật ký duyệt. |
-| Ngoại lệ | Thiếu tọa độ hợp lệ hoặc mã địa điểm đã tồn tại: giữ đề xuất chờ duyệt và báo lỗi. Đề xuất đã xử lý hoặc người dùng thiếu quyền: từ chối cập nhật. |
-| Hậu điều kiện | Duyệt quán mới tạo bản ghi `PUBLISHED`. Duyệt báo quán đóng cửa chuyển quán sang `CLOSED`. Đề xuất ghi nhận `APPROVED` hoặc `REJECTED` và quyết định có trong nhật ký. |
+| Ngoại lệ | Thiếu tọa độ hợp lệ hoặc chưa xác định được bản ghi khớp thì giữ đề xuất chờ duyệt. Nếu mã Goong khớp với quán hệ thống đã nhập, Admin kiểm tra và dùng lại bản ghi đó. Đề xuất đã xử lý hoặc người dùng thiếu quyền thì từ chối cập nhật. |
+| Hậu điều kiện | Duyệt quán mới tạo bản ghi `PUBLISHED` hoặc cập nhật bản ghi `PENDING` đã nhập. Duyệt báo quán đóng cửa chuyển quán sang `CLOSED`. Đề xuất ghi nhận `APPROVED` hoặc `REJECTED` và quyết định có trong nhật ký. |
 
 ### UC-12 — Duyệt hoặc từ chối báo cáo giá
 
@@ -293,7 +299,7 @@ flowchart TD
 
 ### Trạng thái quán
 
-Trạng thái hiển thị của quán gồm `PENDING`, `PUBLISHED`, `REJECTED`, `SUSPENDED` và `CLOSED`. Tìm kiếm công khai chỉ lấy quán `PUBLISHED`. Đóng góp được theo dõi riêng bằng `PENDING`, `APPROVED` và `REJECTED`.
+Trạng thái hiển thị của quán gồm `PENDING`, `PUBLISHED`, `REJECTED`, `SUSPENDED` và `CLOSED`. Kết quả catalog có món và giá chỉ lấy quán `PUBLISHED`. Quán `PENDING` có thể xuất hiện như gợi ý địa điểm nếu có liên kết Goong đã lưu theo từ khóa. Đóng góp do người dùng gửi được theo dõi riêng bằng `PENDING`, `APPROVED` và `REJECTED`.
 
 ### Giá hiển thị và nhãn xác minh
 
@@ -316,7 +322,7 @@ Mỗi bản ghi `PRICE_ASSERTION` lưu `min_price`, `max_price`, `currency`, `is
 | BR-02 | Sở thích Guest được lưu trong storage của trình duyệt trên thiết bị hiện tại; không bảo đảm tồn tại vĩnh viễn, không đồng bộ thiết bị và có thể mất khi người dùng xóa dữ liệu/trình duyệt dọn dữ liệu. |
 | BR-03 | Đăng nhập dùng để đồng bộ sở thích/yêu thích và gửi đóng góp có danh tính. Báo giá, đề xuất quán/báo sai thông tin và đánh giá đều cần tài khoản `ACTIVE` vì bản ghi phải có người gửi (`submitted_by`/`author_user_id`); không có báo cáo ẩn danh. Không ép đăng nhập chỉ để tìm kiếm. |
 | BR-04 | Chỉ Admin được duyệt quán và gắn hoặc làm mới nhãn xác minh của quán (`verified_at`, `verified_by`); mọi quyền được kiểm tra ở backend. |
-| BR-05 | Chỉ quán `PUBLISHED` xuất hiện trong tìm kiếm công khai. |
+| BR-05 | Chỉ quán `PUBLISHED` xuất hiện trong kết quả catalog. Mục gợi ý Goong chỉ xét bản ghi `PENDING` hoặc `PUBLISHED` có liên kết từ khóa phù hợp. |
 | BR-06 | Không suy diễn giá từ dữ liệu bản đồ. Giá phải có nguồn trong catalog/menu hoặc báo cáo giá được lưu riêng. |
 | BR-07 | Báo cáo được lưu để chờ Admin duyệt. Lần cập nhật giá được duyệt sau cùng quyết định giá hiện hành và giữ các mức giá trước đó trong lịch sử. |
 | BR-08 | Luôn phân biệt quán đã xác minh/chưa xác minh và món có giá/chưa có giá (`NO_PRICE`). |
@@ -326,10 +332,11 @@ Mỗi bản ghi `PRICE_ASSERTION` lưu `min_price`, `max_price`, `currency`, `is
 | BR-12 | Từ chối quyền vị trí thì dùng mốc khu vực đang chọn. Bán kính và GPS chỉ nằm trong phạm vi lượt tìm. |
 | BR-13 | Contribution, moderation và thay đổi xác minh phải có audit trail, bao gồm tác nhân, thời điểm, trạng thái trước/sau và nguồn/bằng chứng. |
 | BR-14 | `is_primary` chỉ địa chỉ mặc định của quán. Tìm quanh mốc xét mọi chi nhánh và hiển thị chi nhánh gần nhất đủ bán kính cho mỗi quán. |
+| BR-15 | Chỉ gọi API ngoài để tìm địa điểm khi không có kết quả catalog và không có gợi ý đã lưu trong bán kính. Chống trùng địa điểm theo `(provider, provider_place_id)` và nhóm kết quả theo `restaurant_id`. |
 
 ## 9. Ngoài phạm vi và ghi chú triển khai
 
-- Bản preview có proxy Goong. Tìm kiếm, tài khoản demo và hàng chờ kiểm duyệt dùng dữ liệu mẫu và localStorage. Bản đồ dùng hình minh họa; danh sách có thể hiển thị số đo thật khi Goong phản hồi.
+- Bản preview dùng proxy Goong để tra cứu địa điểm, địa chỉ và lộ trình. Catalog mẫu, gợi ý đã lưu, tài khoản demo và hàng chờ kiểm duyệt dùng `localStorage`. MySQL là kho dùng chung theo thiết kế backend.
 - Gateway, xác thực tài khoản phía server và kho dữ liệu MySQL là thiết kế backend trong [kiến trúc SOA](SOA_ARCHITECTURE.md). Trong bản demo, người dùng chọn tài khoản mẫu để thực hiện các luồng cần đăng nhập.
 - Tài khoản Admin được tạo/cấp quyền nội bộ; không có luồng tự đăng ký Admin công khai.
 - Dữ liệu vị trí chính xác và ảnh menu cần có mục đích sử dụng, quyền truy cập và thời hạn lưu phù hợp.
