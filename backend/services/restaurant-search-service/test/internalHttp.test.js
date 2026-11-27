@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createServer } = require('node:http');
-const { createRestaurantSearchHandler } = require('../src/index');
+const { createRestaurantSearchApp } = require('../src/index');
 const { createCatalogAdminService } = require('../src/admin/catalogAdminService');
 const { setup, emptySeed, addRestaurant, silentLogger, CENTER } = require('./helpers');
 
@@ -13,8 +13,8 @@ async function withServer({ token = TOKEN, seed = emptySeed(), repositoryPatch }
   if (repositoryPatch) Object.assign(repository, repositoryPatch(repository));
   const catalogAdmin = createCatalogAdminService({ repository, dishText });
   const context = { service, repository, dishText, catalogAdmin, internalToken: token };
-  const handle = createRestaurantSearchHandler(async () => context, silentLogger);
-  const server = createServer((req, res) => void handle(req, res, new URL(req.url, 'http://localhost')));
+  const app = createRestaurantSearchApp(async () => context, silentLogger);
+  const server = createServer(app);
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   const call = (method, path, body, headers = {}) => fetch(base + BASE_PATH + path, {

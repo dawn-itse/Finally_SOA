@@ -1,5 +1,5 @@
 /**
- * Zero-dependency Node.js Server for previewing "Mua Gì Đây" Frontend
+ * Node.js server for previewing the "Mua Gì Đây" frontend and APIs.
  * Run: node backend/server.js -> Open http://localhost:3000
  */
 
@@ -35,7 +35,7 @@ function createAppServer() {
     const requestUrl = new URL(req.url, 'http://localhost');
     // Geo trước Restaurant Search: /api/internal/v1/geo/* nằm dưới tiền tố nội bộ của Catalog.
     if (isGeoRoute(requestUrl.pathname)) {
-      void handleGeo(req, res, requestUrl);
+      handleGeo(req, res);
       return;
     }
     if (requestUrl.pathname === NLP_ROUTE) {

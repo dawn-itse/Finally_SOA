@@ -20,7 +20,7 @@ Finally_SOA/
 │       └── demo/                  # Nghiệp vụ mô phỏng, NLP và dữ liệu mẫu
 ├── backend/                       # Mã chạy trên Node.js
 │   ├── server.js                  # Phục vụ frontend và chuyển tiếp yêu cầu vị trí
-│   ├── routes/geo.js              # Xử lý /api/geo/* và gọi Goong REST API
+│   ├── routes/geo.js              # Lớp tương thích cho Routing & Geo Service
 │   ├── .env.example               # Mẫu cấu hình riêng của backend
 │   ├── api-gateway/               # Khung API Gateway
 │   └── services/                  # Khung 7 service theo bảng phân công
@@ -35,6 +35,8 @@ Frontend gọi API vị trí qua cùng địa chỉ với trang đang mở. Bả
 Dùng Node.js 22 trở lên. Từ thư mục gốc dự án, chạy:
 
 ```powershell
+npm install --prefix backend/services/routing-geo-service
+npm install --prefix backend/services/restaurant-search-service
 node backend/server.js
 ```
 

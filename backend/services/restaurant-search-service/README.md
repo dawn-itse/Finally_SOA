@@ -27,7 +27,7 @@ Lưu ý hạn mức Goong: khi tổng vẫn dưới 3 quán, **mỗi lượt tì
   "radius_km": 2,
   "sort_by": "recommended",
   "anchor": { "source": "GPS", "lat": 21.0048, "lng": 105.8042 },
-  "limit": 20,
+  "limit": 3,
   "include_route": false
 }
 ```
@@ -39,7 +39,7 @@ Lưu ý hạn mức Goong: khi tổng vẫn dưới 3 quán, **mỗi lượt tì
 | `radius_km` | Lớn hơn 0 và tối đa 50. |
 | `anchor` | `{ source: "GPS", lat, lng }` hoặc `{ source: "AREA", area_id }`. |
 | `sort_by` | `recommended` (mặc định: đã xác minh → rating → gần), `distance`, `rating`, `price`. |
-| `limit` | Tùy chọn, 1 đến 50, mặc định 20. Tổng số quán trả về luôn bị chặn ở 3, nên `limit` chỉ có tác dụng khi nhỏ hơn 3. |
+| `limit` | Tùy chọn, 1 đến 50, mặc định 3. Tổng số quán trả về luôn bị chặn ở 3, nên `limit` chỉ có tác dụng khi nhỏ hơn 3. |
 | `include_route` | Tùy chọn. `true` gọi Distance Matrix (xe máy) cho tối đa 10 quán đầu và điền `route`. Mặc định tắt để tiết kiệm hạn mức Goong. |
 
 Phản hồi `200`:
@@ -167,11 +167,13 @@ Test bao phủ API nội bộ (xác thực, áp dụng/gỡ giá, lịch sử, l
 
 ```text
 src/
-  index.js                  HTTP handler, chọn kho dữ liệu theo biến môi trường, chạy riêng cổng 4003
+  index.js                  Chọn kho dữ liệu theo biến môi trường, dựng context, chạy riêng cổng 4003 (Express)
+  app.js                    createRestaurantSearchApp: ứng dụng Express, gắn router công khai + nội bộ
+  routes/searchRoutes.js    Router /api/v1/restaurants (search, health)
   searchService.js          Luồng catalog → gợi ý đã lưu → Goong, sắp xếp, khoảng cách theo tuyến
   validation.js             Kiểm tra body của /search
-  http.js                   send, readJsonBody dùng chung
-  admin/                    API nội bộ: catalogAdminService (nghiệp vụ), adminValidation, internalRoutes (HTTP + token)
+  http.js                   Middleware dùng chung: send, requireJson, jsonBody, methodNotAllowed, error handler
+  admin/                    API nội bộ: catalogAdminService (nghiệp vụ), adminValidation, internalRoutes (Router Express + token)
   geoMath.js                Haversine, khung bao quanh bán kính
   clients/                  geoClient (Routing & Geo), reviewClient (Feedback & Review)
   repositories/             mysqlRepository, memoryRepository (cùng hợp đồng, có transaction(fn) cho API nội bộ)

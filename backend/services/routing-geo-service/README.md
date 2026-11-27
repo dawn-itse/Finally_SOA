@@ -1,12 +1,18 @@
 # Routing & Geo Service
 
-Thành viên 2 phụ trách. Cổng mặc định `4004` khi chạy độc lập.
+Thành viên 2 phụ trách. Service dùng Node.js 22+ và Express 5, cổng mặc định `4004` khi chạy độc lập.
 
 Sở hữu bảng `SEARCH_AREA` ([ERD](../../../docs/ERD.md)) và là nơi duy nhất đọc `GOONG_API_KEY`: chuẩn hóa địa chỉ, tra cứu địa điểm theo từ khóa/tâm/bán kính, đặt nhãn cho tọa độ thiết bị, tính quãng đường và chỉ đường xe máy qua Goong V2. `RESTAURANT_LOCATION` vẫn thuộc `restaurant-search-service` (4003), service này chỉ trả dữ liệu địa điểm để Catalog lưu. Xem [kiến trúc SOA](../../../docs/SOA_ARCHITECTURE.md) mục 3 và 4.
 
 ## Chạy
 
-**Cùng server preview** (không cần MySQL): `node backend/server.js`. Geo Service được gắn vào `backend/server.js` và thay proxy cũ ở `backend/routes/geo.js` (file này giờ chỉ còn là lớp tương thích). Kho in-memory nạp 3 khu vực mẫu từ `db/seed.json` và **mất khi khởi động lại**.
+Từ thư mục gốc, cài dependency của Geo Service cho cả hai chế độ chạy:
+
+```powershell
+npm install --prefix backend/services/routing-geo-service
+```
+
+**Cùng server preview** (không cần MySQL): cài thêm dependency bằng `npm install --prefix backend/services/restaurant-search-service`, rồi chạy `node backend/server.js`. Geo Service được gắn vào `backend/server.js` và thay proxy cũ ở `backend/routes/geo.js` (file này giờ chỉ còn là lớp tương thích). Kho in-memory nạp 3 khu vực mẫu từ `db/seed.json` và **mất khi khởi động lại**.
 
 **Chạy riêng** (cổng 4004): `node backend/services/routing-geo-service/src/index.js`, rồi đặt `GEO_SERVICE_URL=http://localhost:4004` cho Restaurant Search.
 
@@ -14,7 +20,6 @@ Sở hữu bảng `SEARCH_AREA` ([ERD](../../../docs/ERD.md)) và là nơi duy n
 
 ```powershell
 cd backend/services/routing-geo-service
-npm install
 mysql -u root -p < db/schema.sql
 mysql -u root -p < db/seed.sql      # tùy chọn
 ```
@@ -78,7 +83,7 @@ Trường: `name` (≤100, không trùng, không phân biệt hoa thường như
 
 ## Kiểm thử
 
-`npm test` (hoặc `node --test`): 47 test, không cần mạng hay MySQL. Goong được thay bằng `fetch` giả; lớp MySQL được kiểm tra bằng pool giả (số `?`, thứ tự khóa dòng, vòng đời giao dịch). `contract.searchService.test.js` chạy chính `geoClient` và `searchService` của 4003 với Geo Service thật để bảo đảm hai bên khớp hợp đồng.
+`npm test` (hoặc `node --test`): không cần mạng ngoài hay MySQL. Goong được thay bằng `fetch` giả; lớp MySQL được kiểm tra bằng pool giả (số `?`, thứ tự khóa dòng, vòng đời giao dịch). `contract.searchService.test.js` chạy chính `geoClient` và `searchService` của 4003 với Geo Service thật để bảo đảm hai bên khớp hợp đồng.
 
 **Chưa kiểm chứng:** lớp MySQL trên MySQL thật (cú pháp `FOR UPDATE`, `READ COMMITTED`) và các lượt gọi tới Goong thật. Trước khi demo hãy chạy `schema.sql`, `seed.sql`, đặt `GOONG_API_KEY` rồi thử vài API ở trên.
 

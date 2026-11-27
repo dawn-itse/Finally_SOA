@@ -1,12 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createServer } = require('node:http');
-const { createRestaurantSearchHandler } = require('../src/index');
+const { createRestaurantSearchApp } = require('../src/index');
 const { setup, emptySeed, addRestaurant, silentLogger, CENTER } = require('./helpers');
 
 async function withServer(context, fn) {
-  const handle = createRestaurantSearchHandler(async () => context, silentLogger);
-  const server = createServer((req, res) => void handle(req, res, new URL(req.url, 'http://localhost')));
+  const app = createRestaurantSearchApp(async () => context, silentLogger);
+  const server = createServer(app);
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {

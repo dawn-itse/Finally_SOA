@@ -192,3 +192,24 @@ test('health và route v1 không tồn tại', async () => {
     assert.equal((await get('/api/v1/geo/nothing')).status, 404);
   });
 });
+
+test('Express giữ cách khớp đường dẫn, query lặp và phản hồi HEAD/OPTIONS', async () => {
+  await withServer({}, async ({ base, get, call, goongFake }) => {
+    assert.equal((await get('/api/geo/reverse/?latlng=21,105')).status, 404);
+    assert.equal((await get('/api/Geo/reverse?latlng=21,105')).status, 404);
+    assert.equal((await get('/api/geo/reverse?latlng=21,105&latlng=invalid')).status, 404);
+    assert.equal(goongFake.calls[0].params.latlng, '21,105');
+    assert.equal((await get('/api/v1/geo//areas//area-1/')).status, 200);
+    assert.equal((await get('/api/v1/geo/areas/%61rea-1')).status, 400);
+
+    const head = await fetch(base + '/api/v1/geo/health', { method: 'HEAD' });
+    assert.equal(head.status, 405);
+    assert.equal(head.headers.get('allow'), 'GET');
+    assert.equal(await head.text(), '');
+
+    const options = await call('OPTIONS', '/api/internal/v1/geo//areas/');
+    assert.equal(options.status, 405);
+    assert.equal(options.headers.get('allow'), 'GET, POST');
+    assert.equal((await options.json()).code, 'METHOD_NOT_ALLOWED');
+  });
+});

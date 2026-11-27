@@ -3,7 +3,7 @@ const { ServiceError } = require('./errors');
 const SORT_OPTIONS = ['recommended', 'distance', 'rating', 'price'];
 const MAX_PRICE_VND = 10_000_000;
 const MAX_RADIUS_KM = 50;
-const DEFAULT_LIMIT = 20;
+const DEFAULT_LIMIT = 3;
 const MAX_LIMIT = 50;
 const AREA_ID_PATTERN = /^[A-Za-z0-9-]{1,64}$/;
 

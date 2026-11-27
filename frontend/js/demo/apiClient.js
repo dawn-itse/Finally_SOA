@@ -28,6 +28,7 @@ import { formatK, normalizeDishText, readDishName } from './nlpParser.js';
 
 export const DEFAULT_BUDGET = 50000;
 export const DEFAULT_RADIUS_KM = 2;
+const MAX_SEARCH_RESULTS = 3;
 
 const serviceLogs = [];
 let logSubscriber = null;
@@ -641,7 +642,9 @@ function readDiscoverySuggestions(keyword, anchor, radiusKm) {
       distanceKm
     });
   }
-  return [...nearestByRestaurant.values()].sort((a, b) => a.distanceKm - b.distanceKm);
+  return [...nearestByRestaurant.values()]
+    .sort((a, b) => a.distanceKm - b.distanceKm)
+    .slice(0, MAX_SEARCH_RESULTS);
 }
 
 function looksLikeFoodPlace(place, name, keyword) {
@@ -1428,7 +1431,7 @@ export const SOAApiClient = {
     return {
       totalMatchedCount: enriched.length,
       heroRestaurant: enriched[0] || null,
-      nearbyOthers: enriched.slice(1),
+      nearbyOthers: enriched.slice(1, MAX_SEARCH_RESULTS),
       searchAnchor: anchor
     };
   },

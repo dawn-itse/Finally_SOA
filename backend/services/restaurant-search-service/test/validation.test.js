@@ -10,7 +10,7 @@ test('request hợp lệ được chuẩn hóa và gắn giá trị mặc địn
   const parsed = parseSearchRequest(valid, dishText);
   assert.equal(parsed.normalizedDish, 'pho bo');
   assert.equal(parsed.sortBy, 'recommended');
-  assert.equal(parsed.limit, 20);
+  assert.equal(parsed.limit, 3);
   assert.equal(parsed.includeRoute, false);
   assert.deepEqual(parsed.anchor, { source: 'GPS', lat: 21.0048, lng: 105.8042 });
 });
