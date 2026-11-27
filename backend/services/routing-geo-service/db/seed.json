@@ -1,0 +1,37 @@
+{
+  "search_area": [
+    {
+      "area_id": "18000000-0000-4000-8000-000000000001",
+      "name": "Lê Văn Lương, Hà Nội",
+      "short_label": "Lê Văn Lương",
+      "anchor_address": "68 Lê Văn Lương, Hà Nội",
+      "anchor_latitude": 21.0048,
+      "anchor_longitude": 105.8042,
+      "anchor_place_id": null,
+      "display_order": 1,
+      "is_active": true
+    },
+    {
+      "area_id": "18000000-0000-4000-8000-000000000002",
+      "name": "Đại học Bách Khoa, Hà Nội",
+      "short_label": "ĐH Bách Khoa",
+      "anchor_address": "1 Đại Cồ Việt, Hà Nội",
+      "anchor_latitude": 21.0051,
+      "anchor_longitude": 105.8432,
+      "anchor_place_id": null,
+      "display_order": 2,
+      "is_active": true
+    },
+    {
+      "area_id": "18000000-0000-4000-8000-000000000003",
+      "name": "Duy Tân, Hà Nội",
+      "short_label": "Duy Tân",
+      "anchor_address": "78 Duy Tân, Hà Nội",
+      "anchor_latitude": 21.0312,
+      "anchor_longitude": 105.7829,
+      "anchor_place_id": null,
+      "display_order": 3,
+      "is_active": true
+    }
+  ]
+}

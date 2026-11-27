@@ -29,7 +29,6 @@
         </div>
 
         <div class="header-actions">
-          <button class="btn-pill-header btn-lang" title="Ngôn ngữ">🇬🇧</button>
           <button class="btn-pill-header" id="btnNewSearchHeader" style="display: none;">
             <span>+ Tìm mới</span>
           </button>
@@ -48,6 +47,9 @@
             <span>Cá nhân hóa</span>
             <span class="header-dot" aria-hidden="true"></span>
           </button>
+          <a href="./admin.html" class="btn-pill-header" style="text-decoration:none;" title="Mở trang đăng nhập Quản trị viên (Admin)">
+            <span>Admin</span>
+          </a>
           <button class="btn-pill-header btn-soa-toggle" id="btnToggleSoaPanel" title="Mở bảng SOA Trace / chuyển nhanh màn hình">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
@@ -68,7 +70,7 @@
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
               <circle cx="12" cy="10" r="3"></circle>
             </svg>
-            <span id="dockFullAddress">Tìm quanh 68 Lê Văn Lương, Nhân Chính, Thanh Xuân</span>
+            <span id="dockFullAddress">Chọn khu vực tìm kiếm</span>
             <button type="button" class="btn-current-location" id="btnCurrentLocation" title="Dùng vị trí hiện tại" aria-label="Dùng vị trí hiện tại">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
                 <circle cx="12" cy="12" r="8"></circle>
@@ -89,42 +91,55 @@
               type="text"
               id="dockSearchInput"
               class="dock-search-input"
-              placeholder="VD: 30k cà phê sữa"
+              placeholder="VD: cà phê sữa"
               autocomplete="off"
+              aria-label="Tên món ăn hoặc đồ uống"
+              aria-describedby="dishInputNotice"
+              maxlength="100"
             />
           </div>
+          <div class="dish-input-notice" id="dishInputNotice" role="status" hidden></div>
 
           <div class="dock-filters-row">
             <div class="dock-chips-left">
               <!-- Location Chip -->
-              <button class="filter-chip" id="chipLocationBtn" title="Nhấn để đổi khu vực">
+              <label class="filter-chip filter-select">
                 <svg class="chip-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                   <circle cx="12" cy="10" r="3"></circle>
                 </svg>
-                <span id="chipLocationLabel">68 Lê Văn...</span>
-                <span>⌄</span>
-              </button>
+                <select id="chipLocationSelect" aria-label="Khu vực tìm kiếm"></select>
+              </label>
 
-              <!-- Budget Chip (Shown after first query) -->
-              <button class="filter-chip" id="chipBudgetBtn" style="display: none;" title="Nhấn để đổi mức ngân sách">
+              <!-- Budget Chip -->
+              <label class="filter-chip filter-select">
                 <svg class="chip-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
                   <rect x="2" y="5" width="20" height="14" rx="2"></rect>
                   <line x1="2" y1="10" x2="22" y2="10"></line>
                 </svg>
-                <span id="chipBudgetLabel">Số tiền</span>
-                <span>⌄</span>
-              </button>
+                <select id="chipBudgetSelect" aria-label="Ngân sách tối đa mỗi người">
+                  <option value="30000">30k</option>
+                  <option value="40000">40k</option>
+                  <option value="50000" selected>50k</option>
+                  <option value="70000">70k</option>
+                  <option value="100000">100k</option>
+                  <option value="200000">200k</option>
+                </select>
+              </label>
 
               <!-- Radius Chip -->
-              <button class="filter-chip" id="chipRadiusBtn" title="Nhấn để đổi bán kính tìm kiếm">
+              <label class="filter-chip filter-select">
                 <svg class="chip-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
                   <circle cx="12" cy="12" r="2"></circle>
                   <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
                 </svg>
-                <span id="chipRadiusLabel">2km</span>
-                <span>⌄</span>
-              </button>
+                <select id="chipRadiusSelect" aria-label="Bán kính tìm kiếm">
+                  <option value="1">1 km</option>
+                  <option value="2" selected>2 km</option>
+                  <option value="3">3 km</option>
+                  <option value="5">5 km</option>
+                </select>
+              </label>
             </div>
 
             <!-- Submit Search Button -->
@@ -141,7 +156,7 @@
 
       <!-- Bottom Sheet Modal (Full Menu, Customer Feedbacks & Personalization) -->
       <!-- Full Places Explorer ("Quán quanh bạn": list + menu detail pane on desktop) -->
-      <section class="places-explorer" id="placesExplorer" aria-hidden="true" aria-label="Quán quanh bạn"></section>
+      <section class="places-explorer" id="placesExplorer" aria-hidden="true" aria-label="Quán quanh điểm tìm"></section>
 
       <div class="modal-overlay" id="appModalOverlay">
         <div class="modal-sheet" id="appModalSheet"></div>
