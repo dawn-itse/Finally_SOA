@@ -9,9 +9,11 @@ const path = require('path');
 const { handleGoong } = require('./routes/geo');
 const { handleWeather, WEATHER_ROUTE } = require('./services/context-weather-service/src');
 const { handleNlp, NLP_ROUTE } = require('./services/nlp-conversation-service/src');
+const { AUTH_PREFIX, createAuthHandler } = require('./services/auth-service/src');
 
 const envFile = path.join(__dirname, '.env');
 if (fs.existsSync(envFile)) process.loadEnvFile(envFile);
+const handleAuth = createAuthHandler();
 
 const DEFAULT_PORT = Number(process.env.PORT) || 3000;
 const FRONTEND_DIR = path.join(__dirname, '..', 'frontend');
@@ -32,6 +34,10 @@ const MIME_TYPES = {
 function createAppServer() {
   return http.createServer((req, res) => {
     const requestUrl = new URL(req.url, 'http://localhost');
+    if (requestUrl.pathname.startsWith(AUTH_PREFIX)) {
+      void handleAuth(req, res, requestUrl);
+      return;
+    }
     if (requestUrl.pathname === NLP_ROUTE) {
       void handleNlp(req, res, requestUrl);
       return;

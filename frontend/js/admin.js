@@ -12,6 +12,7 @@
 import { SOAApiClient, syncDatabaseFromStorage, DB_STORAGE_KEY } from './demo/apiClient.js';
 import { formatK } from './demo/nlpParser.js';
 import { bindAddressLookup, getSelectedLocation } from './components/addressLookup.js';
+import { requestAuth } from './api/auth.js';
 
 const rootEl = document.getElementById('adminAppRoot');
 
@@ -84,7 +85,7 @@ function renderLoginScreen() {
         </div>
 
         <p class="admin-login-desc">
-          Đăng nhập bằng tài khoản Quản trị viên để xem và xác minh báo cáo sai/thiếu giá, sửa thông tin quán, menu hoặc báo đóng cửa từ người dùng.
+          Đăng nhập bằng tài khoản Quản trị viên để kiểm duyệt báo cáo và đóng góp.
         </p>
 
         ${adminState.loginError ? `<div class="admin-error-box">${escapeHtml(adminState.loginError)}</div>` : ''}
@@ -120,15 +121,6 @@ function renderLoginScreen() {
             Đăng nhập trang Admin
           </button>
         </form>
-
-        <div class="admin-demo-hint">
-          <div><strong>Tài khoản Admin mẫu:</strong></div>
-          <div>Email: <code>admin.moderator@muagiday.vn</code></div>
-          <div>Mật khẩu: <code>admin123</code></div>
-          <button type="button" class="btn-link-muted" id="btnFillDemoAdmin" style="margin-top:6px;">
-            Điền nhanh thông tin Admin mẫu
-          </button>
-        </div>
 
         <div class="admin-login-footer">
           <a href="./index.html" class="btn-link-muted">Quay lại giao diện người dùng</a>
@@ -649,18 +641,31 @@ function renderApp() {
   rootEl.innerHTML = renderDashboard();
 }
 
-// Delegated Events
-rootEl.addEventListener('click', (e) => {
-  if (e.target.closest('#btnFillDemoAdmin')) {
-    const emailEl = document.getElementById('adminEmail');
-    const passEl = document.getElementById('adminPassword');
-    if (emailEl) emailEl.value = 'admin.moderator@muagiday.vn';
-    if (passEl) passEl.value = 'admin123';
-    return;
-  }
+let authVersion = 0;
+let authPending = false;
 
-  if (e.target.closest('#btnAdminLogout')) {
-    SOAApiClient.adminLogout();
+async function restoreAdminSession() {
+  const version = authVersion;
+  const result = await requestAuth('current', { portal: 'admin' });
+  if (version !== authVersion || !result.ok) return;
+  const previousAdmin = SOAApiClient.getAdminSession().currentAdmin?.user_id;
+  SOAApiClient.setAuthSession('admin', result.data);
+  if (previousAdmin !== SOAApiClient.getAdminSession().currentAdmin?.user_id) renderApp();
+}
+
+// Delegated Events
+rootEl.addEventListener('click', async (e) => {
+  const logout = e.target.closest('#btnAdminLogout');
+  if (logout) {
+    if (authPending) return;
+    authPending = true;
+    authVersion++;
+    logout.disabled = true;
+    const result = await requestAuth('logout', { portal: 'admin' });
+    authPending = false;
+    logout.disabled = false;
+    if (!result.ok) return showToast(result.error, 'error');
+    SOAApiClient.setAuthSession('admin', null);
     adminState.loginError = '';
     renderApp();
     showToast('Đã đăng xuất khỏi trang Admin.', 'info');
@@ -755,22 +760,30 @@ rootEl.addEventListener('click', (e) => {
   }
 });
 
-rootEl.addEventListener('submit', (e) => {
+rootEl.addEventListener('submit', async (e) => {
   const loginForm = e.target.closest('#adminLoginForm');
   if (loginForm) {
     e.preventDefault();
+    if (authPending) return;
     const fd = new FormData(loginForm);
-    const res = SOAApiClient.adminLogin({
-      email: fd.get('email'),
-      password: fd.get('password')
+    const button = loginForm.querySelector('button[type="submit"]');
+    authPending = true;
+    authVersion++;
+    button.disabled = true;
+    const res = await requestAuth('login', {
+      portal: 'admin',
+      body: { email: fd.get('email'), password: fd.get('password') }
     });
+    authPending = false;
+    button.disabled = false;
     if (!res.ok) {
       adminState.loginError = res.error;
       renderApp();
       return;
     }
+    SOAApiClient.setAuthSession('admin', res.data);
     adminState.loginError = '';
-    showToast(`Chào mừng ${res.data.display_name}!`, 'success');
+    showToast(`Chào mừng ${res.data.user.display_name}!`, 'success');
     renderApp();
     return;
   }
@@ -845,3 +858,7 @@ window.addEventListener('storage', (e) => {
 
 bindAddressLookup(rootEl);
 renderApp();
+void restoreAdminSession();
+window.addEventListener('focus', () => {
+  if (!authPending) void restoreAdminSession();
+});

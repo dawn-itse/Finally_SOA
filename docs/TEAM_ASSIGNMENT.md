@@ -37,7 +37,7 @@ Bản demo dùng catalog mẫu và localStorage. Phần triển khai backend c�
 - **Nhiệm vụ Backend (SOA):**
   1. Xây dựng **API Gateway (`Port 4000`)**: nhận request từ Frontend, thực hiện Auth Guard (kiểm tra phiên/JWT, chặn request chưa đăng nhập tới các endpoint cần `APP_USER`), chuyển tiếp danh tính (`submitted_by` / `role`) và điều phối gọi sang các Service con.
   2. Xây dựng **Auth Service (`Port 4007`)** — sở hữu `APP_USER`:
-     - Quản lý đăng ký, đăng nhập (`POST/DELETE /api/v1/auth/session`), hash mật khẩu, vai trò (`USER`/`ADMIN`) và trạng thái `account_status` (`ACTIVE`/khóa).
+     - Quản lý đăng ký (`POST /api/v1/auth/register`), đăng nhập, kiểm tra và hủy phiên (`POST/GET/DELETE /api/v1/auth/session`), hash mật khẩu, vai trò (`USER`/`ADMIN`) và trạng thái `account_status` (`ACTIVE`/khóa).
      - Cung cấp endpoint kiểm tra/xác thực danh tính cho Gateway.
   3. Xây dựng **Context & Weather Service (`Port 4001`)**: lấy thời tiết theo tọa độ qua Meteosource và gợi ý món theo điều kiện thời tiết và thời gian. Bản preview gắn nhãn dữ liệu mẫu khi service không phản hồi.
   4. Xây dựng **NLP Conversation Service (`Port 4002`)**: chuẩn hóa từ khóa tên món và xử lý gợi ý có sẵn. Kết nối ô tên món với các bộ lọc riêng cho ngân sách, bán kính và khu vực; Gateway chuyển các điều kiện đã chọn đến `restaurant-search-service` (`4003`) theo hợp đồng API.

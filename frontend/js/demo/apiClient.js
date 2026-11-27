@@ -32,11 +32,11 @@ export const DEFAULT_RADIUS_KM = 2;
 const serviceLogs = [];
 let logSubscriber = null;
 const GUEST_STORAGE_KEY = 'muagiday_guest_preferences_v1';
-const SESSION_STORAGE_KEY = 'muagiday_session_user_v1';
-const ADMIN_SESSION_STORAGE_KEY = 'muagiday_admin_session_v1';
+const authSessions = { user: null, admin: null };
 export const DB_STORAGE_KEY = 'muagiday_erd_db_v2';
 
 const PERSISTED_TABLES = [
+  'APP_USER',
   'SEARCH_AREA',
   'RESTAURANT',
   'RESTAURANT_LOCATION',
@@ -268,25 +268,13 @@ function saveGuestState(nextState) {
  * Auth Session Helpers (User session separated from Admin Portal session)
  */
 function loadSessionUser() {
-  try {
-    const userId = localStorage.getItem(SESSION_STORAGE_KEY);
-    if (!userId) return null;
-    const user = ERD_DATABASE.APP_USER.find((u) => u.user_id === userId) || null;
-    return user && user.role !== 'ADMIN' ? user : null;
-  } catch {
-    return null;
-  }
+  const session = authSessions.user;
+  return session && Date.parse(session.expires_at) > Date.now() ? session.user : null;
 }
 
 function loadAdminSessionUser() {
-  try {
-    const userId = localStorage.getItem(ADMIN_SESSION_STORAGE_KEY);
-    if (!userId) return null;
-    const user = ERD_DATABASE.APP_USER.find((u) => u.user_id === userId) || null;
-    return user && user.role === 'ADMIN' && user.account_status === 'ACTIVE' ? user : null;
-  } catch {
-    return null;
-  }
+  const session = authSessions.admin;
+  return session && Date.parse(session.expires_at) > Date.now() ? session.user : null;
 }
 
 function toPublicUser(user) {
@@ -959,87 +947,29 @@ export const SOAApiClient = {
     return ctx;
   },
 
-  /**
-   * 1B. User Auth Session (syncs Guest preferences to USER_PREFERENCE on sign-in)
-   */
+  setAuthSession(portal, session) {
+    const expectedRole = portal === 'admin' ? 'ADMIN' : 'USER';
+    const user = session?.user;
+    authSessions[portal] = user?.role === expectedRole && user.account_status === 'ACTIVE' &&
+      Date.parse(session.expires_at) > Date.now() ? session : null;
+    if (!authSessions[portal]) return;
+
+    syncDatabaseFromStorage();
+    const existing = ERD_DATABASE.APP_USER.find((row) => row.user_id === user.user_id);
+    if (!existing || existing.display_name !== user.display_name || existing.account_status !== user.account_status) {
+      if (existing) Object.assign(existing, toPublicUser(user));
+      else ERD_DATABASE.APP_USER.push(toPublicUser(user));
+      persistDatabase();
+    }
+  },
+
   getSession() {
-    syncDatabaseFromStorage();
-    const user = loadSessionUser();
-    return {
-      currentUser: toPublicUser(user),
-      demoAccounts: ERD_DATABASE.APP_USER.filter((u) => u.role !== 'ADMIN').map(toPublicUser)
-    };
+    return { currentUser: toPublicUser(loadSessionUser()) };
   },
 
-  signInAs(userId) {
-    syncDatabaseFromStorage();
-    const user = ERD_DATABASE.APP_USER.find((u) => u.user_id === userId && u.role !== 'ADMIN');
-    if (!user) return fail('Không tìm thấy tài khoản người dùng.');
-    if (user.account_status !== 'ACTIVE') return fail(`Tài khoản đang ${user.account_status}.`);
-    try {
-      localStorage.setItem(SESSION_STORAGE_KEY, user.user_id);
-    } catch {
-      // ignore storage errors
-    }
-    ensureUserPreferenceSynced(user.user_id);
-    emitServiceTrace('auth-service', 'POST /api/v1/auth/session', `Đăng nhập: ${user.display_name} (đồng bộ USER_PREFERENCE)`);
-    return { ok: true, data: toPublicUser(user) };
-  },
-
-  signOut() {
-    try {
-      localStorage.removeItem(SESSION_STORAGE_KEY);
-    } catch {
-      // ignore storage errors
-    }
-    emitServiceTrace('auth-service', 'DELETE /api/v1/auth/session', 'Đăng xuất -> chế độ Khách (Guest)');
-    return { ok: true };
-  },
-
-  /**
-   * 1C. Dedicated Admin Authentication (separated from public user session)
-   */
   getAdminSession() {
     const admin = loadAdminSessionUser();
-    return {
-      currentAdmin: toPublicUser(admin),
-      isAuthenticated: Boolean(admin)
-    };
-  },
-
-  adminLogin({ email, password }) {
-    const cleanEmail = String(email || '').trim().toLowerCase();
-    const cleanPassword = String(password || '').trim();
-    if (!cleanEmail || !cleanPassword) {
-      return fail('Vui lòng nhập đầy đủ email và mật khẩu Admin.');
-    }
-    const adminUser = ERD_DATABASE.APP_USER.find(
-      (u) => u.email.toLowerCase() === cleanEmail && u.role === 'ADMIN'
-    );
-    if (!adminUser) {
-      return fail('Email không tồn tại hoặc không có quyền Quản trị viên (ADMIN).');
-    }
-    if (adminUser.account_status !== 'ACTIVE') {
-      return fail(`Tài khoản Admin đang ở trạng thái ${adminUser.account_status}.`);
-    }
-    if (cleanPassword !== 'admin123') {
-      return fail('Mật khẩu Admin không đúng. (Mật khẩu demo: admin123)');
-    }
-    try {
-      localStorage.setItem(ADMIN_SESSION_STORAGE_KEY, adminUser.user_id);
-    } catch {
-      // ignore storage errors
-    }
-    return { ok: true, data: toPublicUser(adminUser) };
-  },
-
-  adminLogout() {
-    try {
-      localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
-    } catch {
-      // ignore storage errors
-    }
-    return { ok: true };
+    return { currentAdmin: toPublicUser(admin), isAuthenticated: Boolean(admin) };
   },
 
   getAllRestaurantsForAdmin() {

@@ -5,6 +5,7 @@
 import { SOAApiClient, onServiceLog, emitServiceTrace, DB_STORAGE_KEY, DEFAULT_BUDGET, DEFAULT_RADIUS_KM } from './demo/apiClient.js';
 import { discoverPlaces, geoPoint, requestGeo } from './api/geo.js';
 import { resolveDish } from './api/nlp.js';
+import { requestAuth } from './api/auth.js';
 import { bindAddressLookup, getSelectedLocation } from './components/addressLookup.js';
 import {
   renderHomeHero,
@@ -66,6 +67,8 @@ const serviceLogBoxEl = document.getElementById('serviceLogBox');
 let searchRequest = null;
 let nlpRequest = null;
 let locationRevision = 0;
+let authVersion = 0;
+let authPending = false;
 
 function syncFavoritesFromPreferences() {
   const prefs = SOAApiClient.getUserPreferences();
@@ -187,6 +190,7 @@ function initApp() {
   bindGlobalEvents();
   startPlaceholderTypewriter();
   void updateWeatherAtCoordinates(getSearchOrigin(), locationRevision);
+  void restoreUserSession();
 }
 
 /**
@@ -641,33 +645,51 @@ function showNotice(message, type = 'info') {
   noticeTimer = setTimeout(() => el.classList.remove('show'), 3800);
 }
 
-/**
- * Demo account switcher (session bar) inside modals
- */
-function handleSessionSwitch(e) {
-  const select = e.target.closest('[data-action="session-switch"]');
-  if (!select) return false;
-  const userId = select.value;
-  const result = userId ? SOAApiClient.signInAs(userId) : SOAApiClient.signOut();
+function renderSessionContext(bar) {
+  if (!bar?.isConnected || !modalOverlayEl.classList.contains('open')) return;
+  const { rerender, restaurantId } = bar.dataset;
+  if (rerender === 'feedback') openRestaurantFeedbackModal(restaurantId);
+  else if (rerender === 'price-report') openWrongPriceReportModal(restaurantId);
+  else if (rerender === 'add-restaurant') openAddRestaurantModal();
+  else if (rerender === 'prefs') openPersonalizationModal('prefs');
+  else openPersonalizationModal('contrib', appState.erdPreselectedRestaurantId, appState.erdPreselectedContribType);
+}
+
+async function restoreUserSession() {
+  const version = authVersion;
+  const result = await requestAuth('current');
+  if (version !== authVersion || !result.ok) return;
+  const previousUser = SOAApiClient.getSession().currentUser?.user_id;
+  SOAApiClient.setAuthSession('user', result.data);
+  if (previousUser !== SOAApiClient.getSession().currentUser?.user_id) {
+    refreshSearch();
+    renderSessionContext(modalSheetEl.querySelector('.session-bar'));
+  }
+}
+
+async function handleAuthSubmit(form) {
+  if (authPending) return;
+  authPending = true;
+  authVersion++;
+  const action = form.dataset.authAction;
+  const bar = form.closest('.session-bar');
+  const button = form.querySelector('button[type="submit"]');
+  const error = bar.querySelector('[data-auth-error]');
+  error.hidden = true;
+  button.disabled = true;
+  const body = action === 'logout' ? undefined : Object.fromEntries(new FormData(form));
+  const result = await requestAuth(action, { body });
+  authPending = false;
+  button.disabled = false;
   if (!result.ok) {
-    showNotice(result.error, 'error');
+    error.textContent = result.error;
+    error.hidden = false;
+    if (!bar.isConnected) showNotice(result.error, 'error');
+    return;
   }
-  renderUI();
-  const rerender = select.getAttribute('data-rerender');
-  if (rerender === 'feedback') {
-    openRestaurantFeedbackModal(select.getAttribute('data-restaurant-id'));
-  } else if (rerender === 'price-report') {
-    openWrongPriceReportModal(select.getAttribute('data-restaurant-id'));
-  } else if (rerender === 'add-restaurant') {
-    openAddRestaurantModal();
-  } else {
-    openPersonalizationModal(
-      'contrib',
-      appState.erdPreselectedRestaurantId,
-      appState.erdPreselectedContribType
-    );
-  }
-  return true;
+  SOAApiClient.setAuthSession('user', result.data);
+  refreshSearch();
+  renderSessionContext(bar);
 }
 
 /**
@@ -891,11 +913,17 @@ function bindGlobalEvents() {
   });
 
   modalSheetEl.addEventListener('submit', (e) => {
-    handleErdFormSubmit(e);
+    const form = e.target.closest('[data-auth-action]');
+    if (form) {
+      e.preventDefault();
+      void handleAuthSubmit(form);
+    } else {
+      handleErdFormSubmit(e);
+    }
   });
 
-  modalSheetEl.addEventListener('change', (e) => {
-    handleSessionSwitch(e);
+  window.addEventListener('focus', () => {
+    if (!authPending) void restoreUserSession();
   });
 
   // Side Panel Scenario Quick Jump Buttons (Screens 1 to 8)

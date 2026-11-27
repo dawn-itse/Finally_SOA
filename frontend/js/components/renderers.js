@@ -975,31 +975,35 @@ export function renderAddRestaurantModal(session = null) {
   `;
 }
 
-/**
- * Mock auth session bar: REVIEW / PRICE_REPORT / CONTRIBUTION need an APP_USER (FK), so guests must sign in.
- */
 export function renderSessionBar(session, { rerender = 'feedback', restaurantId = '' } = {}) {
-  const currentUser = session?.currentUser || null;
-  const accounts = session?.demoAccounts || [];
+  const user = session?.currentUser;
   return `
-    <div class="session-bar ${currentUser ? 'signed-in' : 'guest'}">
-      <div class="session-bar-text">
-        ${
-          currentUser
-            ? `👤 Đang gửi với tài khoản <strong>${escapeHtml(currentUser.display_name)}</strong>`
-            : '👤 Bạn đang là <strong>Khách</strong>. Đăng nhập để gửi đánh giá, báo sai giá hoặc đóng góp.'
-        }
-      </div>
-      <select class="form-input-field session-switch" data-action="session-switch" data-rerender="${rerender}" data-restaurant-id="${escapeHtml(restaurantId)}" aria-label="Chọn tài khoản demo">
-        <option value="" ${currentUser ? '' : 'selected'}>Khách (chưa đăng nhập)</option>
-        ${accounts
-          .map(
-            (u) => `<option value="${u.user_id}" ${currentUser && currentUser.user_id === u.user_id ? 'selected' : ''} ${u.account_status !== 'ACTIVE' ? 'disabled' : ''}>
-              ${escapeHtml(u.display_name)}
-            </option>`
-          )
-          .join('')}
-      </select>
+    <div class="session-bar ${user ? 'signed-in' : 'guest'}" data-rerender="${rerender}" data-restaurant-id="${escapeHtml(restaurantId)}">
+      <div class="session-bar-text">${user ? `Tài khoản <strong>${escapeHtml(user.display_name)}</strong>` : 'Bạn đang dùng ở chế độ Khách.'}</div>
+      ${user ? `
+        <form data-auth-action="logout">
+          <button type="submit" class="btn-pill-header">Đăng xuất</button>
+        </form>
+      ` : `
+        <details class="auth-option">
+          <summary>Đăng nhập</summary>
+          <form class="auth-form" data-auth-action="login">
+            <label>Email <input type="email" name="email" class="form-input-field" maxlength="254" autocomplete="username" required></label>
+            <label>Mật khẩu <input type="password" name="password" class="form-input-field" maxlength="128" autocomplete="current-password" required></label>
+            <button type="submit" class="btn-pill-header">Đăng nhập</button>
+          </form>
+        </details>
+        <details class="auth-option">
+          <summary>Đăng ký</summary>
+          <form class="auth-form" data-auth-action="register">
+            <label>Tên hiển thị <input name="display_name" class="form-input-field" maxlength="80" autocomplete="name" required></label>
+            <label>Email <input type="email" name="email" class="form-input-field" maxlength="254" autocomplete="email" required></label>
+            <label>Mật khẩu (ít nhất 8 ký tự) <input type="password" name="password" class="form-input-field" minlength="8" maxlength="128" autocomplete="new-password" required></label>
+            <button type="submit" class="btn-pill-header">Tạo tài khoản</button>
+          </form>
+        </details>
+      `}
+      <p class="auth-error" data-auth-error role="alert" hidden></p>
     </div>
   `;
 }
@@ -1047,7 +1051,8 @@ export function renderPersonalizationAndErdModal({
     return renderPersonalizationPanelExact({
       userPrefs,
       dietaryCatalog,
-      dishCategoryCatalog
+      dishCategoryCatalog,
+      session
     });
   }
 
@@ -1074,7 +1079,7 @@ export function renderPersonalizationAndErdModal({
 /**
  * Exact 1:1 "Cá nhân hóa" Panel matching the user's 2 screenshots
  */
-function renderPersonalizationPanelExact({ userPrefs, dietaryCatalog, dishCategoryCatalog }) {
+function renderPersonalizationPanelExact({ userPrefs, dietaryCatalog, dishCategoryCatalog, session }) {
   const selectedRestrictions = new Set(userPrefs.restriction_ids || []);
   const selectedDishes = new Set(userPrefs.favorite_dish_category_ids || []);
   const dietMode = userPrefs.diet_mode || null;
@@ -1105,6 +1110,7 @@ function renderPersonalizationPanelExact({ userPrefs, dietaryCatalog, dishCatego
 
       <!-- Scrollable Body -->
       <div class="personalize-panel-body">
+        ${renderSessionBar(session, { rerender: 'prefs' })}
         <!-- 1. Bạn không ăn được gì? chọn nhiều -->
         <section class="personalize-block">
           <div class="personalize-block-title">

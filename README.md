@@ -32,7 +32,7 @@ Frontend gọi API vị trí qua cùng địa chỉ với trang đang mở. Bả
 
 ## Chạy dự án
 
-Dùng Node.js 22 trở lên. Từ thư mục gốc dự án, chạy:
+Dùng Node.js 22.13 trở lên. Từ thư mục gốc dự án, chạy:
 
 ```powershell
 node backend/server.js
@@ -55,6 +55,8 @@ if (-not (Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env
 
 Ô tìm món gọi NLP Service qua server preview. [Hướng dẫn chạy riêng và test NLP bằng Postman](backend/services/nlp-conversation-service/README.md)
 
+Mở **Cá nhân hóa → Đăng ký** để test tài khoản người dùng. Trang `/admin.html` dùng tài khoản được cấp bằng lệnh Auth Service. [Hướng dẫn test Auth và tạo tài khoản Admin](backend/services/auth-service/README.md)
+
 ### Dùng phần A7
 
 1. Trong “Thêm quán” hoặc “Đóng góp / Sửa quán”, nhập địa chỉ và chọn một gợi ý Goong. App tải tọa độ và địa chỉ chuẩn. Gửi đề xuất để Admin kiểm tra.
@@ -68,7 +70,7 @@ Khi để trống key, phần tìm quán mock vẫn dùng được. Địa chỉ
 1. Chọn **Lê Văn Lương**, ngân sách **50k** và bán kính **2 km**. Nhập **phở bò** hoặc **pho bo**, rồi bấm **Tìm quán**.
 2. Đổi bán kính hoặc ngân sách để cập nhật kết quả. Bán kính tính theo đường chim bay. Các quán có tuyến Goong sẽ hiện thêm quãng đường theo đường đi. Mỗi thẻ ghi điểm xuất phát.
 3. Bấm **Vị trí hiện tại** để dùng tọa độ thiết bị. Nếu trình duyệt không cấp quyền, ứng dụng quay về điểm mốc đang chọn. Bán kính và tọa độ thiết bị chỉ dùng trong trạng thái trang.
-4. Mở `/admin.html`, đăng nhập bằng tài khoản demo và vào **Khu vực tìm kiếm**. Thêm hoặc sửa khu vực bằng cách chọn một địa chỉ Goong, hoặc nhập địa chỉ cùng vĩ độ và kinh độ. Khu vực đang hoạt động sẽ xuất hiện ở menu tìm kiếm.
+4. Mở `/admin.html`, đăng nhập bằng tài khoản Admin đã được cấp và vào **Khu vực tìm kiếm**. Thêm hoặc sửa khu vực bằng cách chọn một địa chỉ Goong, hoặc nhập địa chỉ cùng vĩ độ và kinh độ. Khu vực đang hoạt động sẽ xuất hiện ở menu tìm kiếm.
 
 Dữ liệu preview gồm ba mốc mẫu ở Hà Nội. Preview ưu tiên catalog mẫu, sau đó kiểm tra gợi ý đã lưu trong `localStorage`. Nếu cả hai đều rỗng, preview tìm thêm qua Goong khi có khóa. Các lần tìm lại trên cùng trình duyệt có thể dùng gợi ý đã lưu.
 
